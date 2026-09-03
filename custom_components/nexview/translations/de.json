@@ -44,6 +44,12 @@
       },
       "push_active": {
         "name": "Rückkanal steht"
+      },
+      "instance_reachable": {
+        "name": "Erreichbar"
+      },
+      "quota_exhausted": {
+        "name": "Kontingent aufgebraucht"
       }
     },
     "sensor": {
@@ -79,6 +85,30 @@
       },
       "series": {
         "name": "Serien"
+      },
+      "movie_quota_used": {
+        "name": "Filme verbraucht"
+      },
+      "movie_quota_remaining": {
+        "name": "Filme übrig"
+      },
+      "series_quota_used": {
+        "name": "Serien verbraucht"
+      },
+      "series_quota_remaining": {
+        "name": "Serien übrig"
+      },
+      "storage_used": {
+        "name": "Speicher belegt"
+      },
+      "storage_remaining": {
+        "name": "Speicher übrig"
+      },
+      "instance_problems": {
+        "name": "Probleme"
+      },
+      "instance_version": {
+        "name": "Version"
       }
     },
     "event": {
@@ -124,6 +154,30 @@
             }
           }
         }
+      }
+    },
+    "button": {
+      "check_update": {
+        "name": "Auf Aktualisierung prüfen"
+      },
+      "storage_sync": {
+        "name": "Speicher abgleichen"
+      },
+      "acknowledge_findings": {
+        "name": "Befunde als gesehen markieren"
+      },
+      "test_connection": {
+        "name": "Verbindung testen"
+      }
+    },
+    "calendar": {
+      "upcoming": {
+        "name": "Demnächst"
+      }
+    },
+    "update": {
+      "nexview": {
+        "name": "Nexview"
       }
     }
   },
@@ -187,6 +241,62 @@
           "description": "Welches Nexview, falls mehrere verbunden sind."
         }
       }
+    },
+    "search": {
+      "name": "Suchen",
+      "description": "Schlägt einen Titel bei TMDB nach und antwortet mit den Treffern. Ändert nichts - das Ergebnis dient dazu, zu entscheiden, was angefragt wird.",
+      "fields": {
+        "query": {
+          "name": "Titel",
+          "description": "Wonach gesucht wird."
+        },
+        "media_type": {
+          "name": "Art",
+          "description": "Film oder Serie. Ohne Angabe Filme."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Welches Nexview, falls mehrere verbunden sind."
+        }
+      }
+    },
+    "list_requests": {
+      "name": "Anfragen auflisten",
+      "description": "Antwortet mit den Anfragen und was aus ihnen geworden ist. Enthält die Anfrage-Nummer, die die entscheidenden Aktionen brauchen.",
+      "fields": {
+        "status": {
+          "name": "Status",
+          "description": "Nur Anfragen in diesem Zustand, etwa pending_approval, downloaded oder rejected. Leer lassen für alle."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Welches Nexview, falls mehrere verbunden sind."
+        }
+      }
+    },
+    "active_downloads": {
+      "name": "Laufende Downloads",
+      "description": "Antwortet mit dem, was gerade geholt wird, samt Fortschritt.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Welches Nexview, falls mehrere verbunden sind."
+        }
+      }
+    },
+    "get_quota": {
+      "name": "Kontingente abfragen",
+      "description": "Antwortet mit dem, was jedes Konto von seinen Kontingenten verbraucht hat, für Stückzahl und Speicher. In Nexview gelten immer beide, und ein volles reicht, damit nichts mehr geht.",
+      "fields": {
+        "account_id": {
+          "name": "Konto",
+          "description": "Ein Konto über seine Nummer. Leer lassen für alle."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Welches Nexview, falls mehrere verbunden sind."
+        }
+      }
     }
   },
   "exceptions": {
@@ -207,12 +317,30 @@
     },
     "unknown_request": {
       "message": "In Nexview gibt es keine Anfrage {request_id}. Vielleicht wurde sie schon entschieden oder entfernt."
+    },
+    "unknown_instance": {
+      "message": "Nexview kennt keine Instanz namens {instance}."
     }
   },
   "issues": {
     "push_missing": {
       "title": "Nexview erreicht Home Assistant nicht",
       "description": "{name} ist verbunden und die Zahlen stimmen, aber Nexview kann nicht zurückrufen. Ereignisse kommen deshalb spät oder gar nicht, und Home Assistant fragt stattdessen alle 30 Sekunden nach.\n\nNexview muss {url} erreichen können. Wenn es das kann, trag die Adresse in Nexview von Hand ein unter Einstellungen, Benachrichtigungen, Webhook, und bestätige sie mit dem Code aus der Testnachricht."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Welche Konten eigene Entitäten bekommen",
+        "description": "Von Haus aus zeigt Nexview nur die Summen für das ganze Haus. Wer hier Konten auswählt, bekommt deren Kontingente als eigene Entitäten. Jedes Konto bringt sieben mit, bei einer großen Installation lohnt sich eine Auswahl.",
+        "data": {
+          "accounts": "Konten"
+        }
+      }
+    },
+    "abort": {
+      "no_accounts_visible": "Dieser Schlüssel sieht keine anderen Konten, es gibt also nichts auszuwählen.",
+      "cannot_connect": "Nexview hat nicht geantwortet. Gleich noch einmal versuchen."
     }
   }
 }

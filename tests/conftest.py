@@ -70,6 +70,89 @@ TILE: dict[str, Any] = {
 }
 
 
+#: Two Arr instances, as Nexview reports them. The keys are the real ones -
+#: Nexview only ever uses these four - and the display names are made up.
+INSTANCES: dict[str, Any] = {
+    "instanzen": [
+        {
+            "kennung": "radarr-standard",
+            "name": "Radarr",
+            "erreichbar": True,
+            "version": "6.3.0",
+        },
+        {
+            "kennung": "sonarr-standard",
+            "name": "Sonarr",
+            "erreichbar": False,
+            "version": "4.1.0",
+        },
+    ]
+}
+
+HEALTH: dict[str, Any] = {
+    "instanzen": [
+        {"kennung": "radarr-standard", "probleme": []},
+        {
+            "kennung": "sonarr-standard",
+            "probleme": [{"typ": "warning", "text": "Indexer unavailable"}],
+        },
+    ]
+}
+
+#: ⚠️ **Invented people.** This repository is public, and a test fixture is
+#: exactly the place where a real household would end up on the internet
+#: without anybody meaning it. A guard checks for that too.
+STATS: dict[str, Any] = {
+    "users": [
+        {
+            "user_id": 1,
+            "username": "admin",
+            "display_name": "Admin",
+            "quota_movie_used": 2,
+            "quota_movie_limit": None,
+            "quota_series_used": 0,
+            "quota_series_limit": None,
+            "storage_used_bytes": 1_000_000_000,
+            "storage_limit_bytes": None,
+        },
+        {
+            "user_id": 7,
+            "username": "gast",
+            "display_name": "Gast",
+            "quota_movie_used": 4,
+            "quota_movie_limit": 5,
+            "quota_series_used": 3,
+            "quota_series_limit": 3,
+            "storage_used_bytes": 500_000_000_000,
+            "storage_limit_bytes": 1_000_000_000_000,
+        },
+    ]
+}
+
+CALENDAR: dict[str, Any] = {
+    "days": [
+        {
+            "date": "2026-09-10",
+            "entries": [
+                {
+                    "key": "tmdb:movie:1",
+                    "title": "Some Film",
+                    "media_type": "movie",
+                    "overview": "A film that does not exist.",
+                }
+            ],
+        }
+    ]
+}
+
+ABOUT: dict[str, Any] = {
+    "version": "0.30.0",
+    "latest_version": "0.31.0",
+    "update_available": True,
+    "release_url": "https://example.com/releases/0.31.0",
+}
+
+
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(
     enable_custom_integrations: None,
@@ -97,6 +180,11 @@ def nexview(aioclient_mock: AiohttpClientMocker) -> AiohttpClientMocker:
         f"{URL}/api/v1/admin/requests/pending/count", json={"pending": 4}
     )
     aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
+    aioclient_mock.get(f"{URL}/api/settings/instanzen/verbindung", json=INSTANCES)
+    aioclient_mock.get(f"{URL}/api/settings/instanzen/gesundheit", json=HEALTH)
+    aioclient_mock.get(f"{URL}/api/admin/stats", json=STATS)
+    aioclient_mock.get(f"{URL}/api/calendar", json=CALENDAR)
+    aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
     return aioclient_mock
 
 

@@ -18,6 +18,14 @@ CONF_URL: Final = "url"
 CONF_KEY: Final = "api_key"
 CONF_WEBHOOK_ID: Final = "webhook_id"
 
+#: Which Nexview accounts get entities of their own. Lives in ``entry.options``
+#: because it is adjustable, not part of the connection.
+#:
+#: ⚠️ **Empty means none, not all.** A house with thirty accounts would
+#: otherwise get a hundred and twenty entities from one click, and every new
+#: Nexview account would quietly add four more.
+CONF_ACCOUNTS: Final = "accounts"
+
 #: How this Home Assistant appears in Nexview's list of notification targets.
 #: Recognisable on sight, because a person will eventually have to decide which
 #: of several entries may be revoked.
@@ -107,6 +115,18 @@ SERVICE_REJECT: Final = "reject_request"
 SERVICE_DEFER: Final = "defer_request"
 SERVICE_CANCEL: Final = "cancel_request"
 
+#: Actions that answer instead of doing something. Kept apart because Home
+#: Assistant registers them differently, and because these are the ones that
+#: may be called without changing anything.
+SERVICE_SEARCH: Final = "search"
+SERVICE_LIST_REQUESTS: Final = "list_requests"
+SERVICE_ACTIVE_DOWNLOADS: Final = "active_downloads"
+SERVICE_GET_QUOTA: Final = "get_quota"
+
 ATTR_REQUEST_ID: Final = "request_id"
+ATTR_QUERY: Final = "query"
+ATTR_MEDIA_TYPE: Final = "media_type"
+ATTR_STATUS: Final = "status"
+ATTR_ACCOUNT: Final = "account_id"
 ATTR_REASON: Final = "reason"
 ATTR_CONFIG_ENTRY: Final = "config_entry_id"

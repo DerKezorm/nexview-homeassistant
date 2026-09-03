@@ -25,12 +25,25 @@ from custom_components.nexview.const import (
 )
 
 from .conftest import (
+    ABOUT,
+    HEALTH,
     IDENTITY_READONLY,
     IDENTITY_USER,
+    INSTANCES,
     TILE,
     URL,
     setup_entry,
 )
+
+
+def _readonly_nexview(mock: AiohttpClientMocker) -> None:
+    """A Nexview seen through a key that may look but not touch."""
+    mock.get(f"{URL}/api/v1/me", json=IDENTITY_READONLY)
+    mock.get(f"{URL}/api/v1/dashboard", json=TILE)
+    mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
+    mock.get(f"{URL}/api/settings/instanzen/verbindung", json=INSTANCES)
+    mock.get(f"{URL}/api/settings/instanzen/gesundheit", json=HEALTH)
+    mock.get(f"{URL}/api/v1/about", json=ABOUT)
 
 
 def _keys(hass: HomeAssistant, entry: MockConfigEntry) -> set[str]:
@@ -80,9 +93,7 @@ class TestWhatTheKeyBringsWithIt:
         the waiting-requests sensor, which needs the right to decide to be
         readable at all.
         """
-        aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_READONLY)
-        aioclient_mock.get(f"{URL}/api/v1/dashboard", json=TILE)
-        aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
+        _readonly_nexview(aioclient_mock)
 
         await setup_entry(hass, entry)
 
@@ -106,6 +117,7 @@ class TestWhatTheKeyBringsWithIt:
         """
         aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_USER)
         aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
+        aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
 
         await setup_entry(hass, entry)
 
@@ -169,9 +181,7 @@ class TestDeciding:
         it must not do is send a call that cannot possibly work and then show
         somebody a bare HTTP code in an automation trace.
         """
-        aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_READONLY)
-        aioclient_mock.get(f"{URL}/api/v1/dashboard", json=TILE)
-        aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
+        _readonly_nexview(aioclient_mock)
 
         await setup_entry(hass, entry)
 

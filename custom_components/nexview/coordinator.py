@@ -29,7 +29,7 @@ from .api import (
     NexviewError,
     Snapshot,
 )
-from .const import DOMAIN, POLL_IDLE, POLL_PUSHED
+from .const import CONF_ACCOUNTS, DOMAIN, POLL_IDLE, POLL_PUSHED
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -98,12 +98,34 @@ class NexviewCoordinator(DataUpdateCoordinator[Snapshot]):
 
         if identity.may(CAP_ADMINISTER):
             snapshot.tile = await self._optional("dashboard", self.client.tile())
+
+            instances = await self._optional("instances", self.client.instances())
+            if instances is not None:
+                snapshot.instances = {i.key: i for i in instances if i.key}
+
+            # Only the accounts somebody asked for. Fetching the rest and
+            # throwing them away would still mean pulling names out of Nexview
+            # for no reason.
+            wanted = self.wanted_accounts
+            if wanted:
+                accounts = await self._optional("accounts", self.client.accounts())
+                if accounts is not None:
+                    snapshot.accounts = {
+                        a.user_id: a for a in accounts if a.user_id in wanted
+                    }
+
         if identity.may(CAP_DECIDE):
             snapshot.pending_count = await self._optional(
                 "pending count", self.client.pending_count()
             )
 
+        snapshot.version = await self._optional("version", self.client.version())
         return snapshot
+
+    @property
+    def wanted_accounts(self) -> set[int]:
+        """Which accounts the operator picked in the options."""
+        return {int(i) for i in self.config_entry.options.get(CONF_ACCOUNTS, [])}
 
     async def _optional(self, what: str, awaitable):
         """Run a call whose failure must not take the rest of the poll down.

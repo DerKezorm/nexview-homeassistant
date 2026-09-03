@@ -22,13 +22,13 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfInformation
-from homeassistant.core import HomeAssistant
+from homeassistant.const import EntityCategory, UnitOfInformation
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .api import CAP_ADMINISTER, CAP_DECIDE, Snapshot
+from .api import CAP_ADMINISTER, CAP_DECIDE, AccountUsage, Snapshot
 from .coordinator import NexviewConfigEntry, NexviewCoordinator
-from .entity import NexviewEntity
+from .entity import NexviewAccountEntity, NexviewEntity, NexviewInstanceEntity
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -146,6 +146,61 @@ SENSORS: tuple[NexviewSensorDescription, ...] = (
 )
 
 
+@dataclass(frozen=True, kw_only=True)
+class NexviewAccountSensorDescription(SensorEntityDescription):
+    """One figure about one account."""
+
+    value_fn: Callable[[AccountUsage], int | None]
+
+
+ACCOUNT_SENSORS: tuple[NexviewAccountSensorDescription, ...] = (
+    NexviewAccountSensorDescription(
+        key="movie_quota_used",
+        translation_key="movie_quota_used",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda a: a.movies.used,
+    ),
+    NexviewAccountSensorDescription(
+        key="movie_quota_remaining",
+        translation_key="movie_quota_remaining",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda a: a.movies.remaining,
+    ),
+    NexviewAccountSensorDescription(
+        key="series_quota_used",
+        translation_key="series_quota_used",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda a: a.series.used,
+    ),
+    NexviewAccountSensorDescription(
+        key="series_quota_remaining",
+        translation_key="series_quota_remaining",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda a: a.series.remaining,
+    ),
+    NexviewAccountSensorDescription(
+        key="storage_used",
+        translation_key="storage_used",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        suggested_display_precision=1,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda a: a.storage.used,
+    ),
+    NexviewAccountSensorDescription(
+        key="storage_remaining",
+        translation_key="storage_remaining",
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        suggested_display_precision=1,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda a: a.storage.remaining,
+    ),
+)
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: NexviewConfigEntry,
@@ -153,11 +208,45 @@ async def async_setup_entry(
 ) -> None:
     coordinator = entry.runtime_data
     identity = coordinator.data.identity
+
     async_add_entities(
         NexviewSensor(coordinator, description)
         for description in SENSORS
         if identity.may(description.requires)
     )
+
+    # ⚠️ **Instances and accounts come and go while this runs.** Somebody adds
+    # a second Sonarr, or picks another account in the options. Building the
+    # list once at setup would mean a restart for every change.
+    known_instances: set[str] = set()
+    known_accounts: set[int] = set()
+
+    @callback
+    def _add_new() -> None:
+        neu: list[SensorEntity] = []
+
+        current_instances = set(coordinator.data.instances)
+        # ⚠️ The intersection first: an instance that vanished and came back
+        # must get its entities created again, not be remembered as known.
+        known_instances.intersection_update(current_instances)
+        for key in current_instances - known_instances:
+            neu.append(NexviewInstanceProblems(coordinator, key))
+            neu.append(NexviewInstanceVersion(coordinator, key))
+        known_instances.update(current_instances)
+
+        current_accounts = set(coordinator.data.accounts)
+        known_accounts.intersection_update(current_accounts)
+        for user_id in current_accounts - known_accounts:
+            neu.extend(
+                NexviewAccountSensor(coordinator, user_id, d) for d in ACCOUNT_SENSORS
+            )
+        known_accounts.update(current_accounts)
+
+        if neu:
+            async_add_entities(neu)
+
+    _add_new()
+    entry.async_on_unload(coordinator.async_add_listener(_add_new))
 
 
 class NexviewSensor(NexviewEntity, SensorEntity):
@@ -180,5 +269,69 @@ class NexviewSensor(NexviewEntity, SensorEntity):
         A key can lose a right while Home Assistant runs, and Nexview can
         answer one call and not the next. Showing a zero in either case would
         be a measurement nobody took.
+        """
+        return super().available and self.native_value is not None
+
+
+class NexviewInstanceProblems(NexviewInstanceEntity, SensorEntity):
+    """How much this Radarr or Sonarr is complaining about itself."""
+
+    entity_description = SensorEntityDescription(
+        key="problems",
+        translation_key="instance_problems",
+        state_class=SensorStateClass.MEASUREMENT,
+    )
+
+    def __init__(self, coordinator: NexviewCoordinator, instance_key: str) -> None:
+        super().__init__(coordinator, instance_key, "problems")
+
+    @property
+    def native_value(self) -> int | None:
+        return self.instance.problems if self.instance else None
+
+
+class NexviewInstanceVersion(NexviewInstanceEntity, SensorEntity):
+    """Which version the instance runs. Diagnostic, and off by default."""
+
+    entity_description = SensorEntityDescription(
+        key="version",
+        translation_key="instance_version",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    )
+
+    def __init__(self, coordinator: NexviewCoordinator, instance_key: str) -> None:
+        super().__init__(coordinator, instance_key, "version")
+
+    @property
+    def native_value(self) -> str | None:
+        return self.instance.version if self.instance else None
+
+
+class NexviewAccountSensor(NexviewAccountEntity, SensorEntity):
+    """One figure about one account."""
+
+    entity_description: NexviewAccountSensorDescription
+
+    def __init__(
+        self,
+        coordinator: NexviewCoordinator,
+        user_id: int,
+        description: NexviewAccountSensorDescription,
+    ) -> None:
+        super().__init__(coordinator, user_id, description.key)
+        self.entity_description = description
+
+    @property
+    def native_value(self) -> int | None:
+        return self.entity_description.value_fn(self.account) if self.account else None
+
+    @property
+    def available(self) -> bool:
+        """⚠️ No allowance is not the same as an allowance of zero.
+
+        Where Nexview grants unlimited, ``remaining`` has no number, and the
+        entity says so instead of showing a nought that would look like an
+        account with nothing left.
         """
         return super().available and self.native_value is not None

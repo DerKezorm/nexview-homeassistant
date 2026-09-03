@@ -19,10 +19,23 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant.components import webhook
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlowWithReload,
+)
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import (
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .api import (
+    CAP_ADMINISTER,
     KEY_PREFIX,
     MIN_VERSION,
     Identity,
@@ -32,7 +45,7 @@ from .api import (
     NexviewError,
     NexviewTooOldError,
 )
-from .const import CONF_KEY, CONF_URL, CONF_WEBHOOK_ID, DOMAIN
+from .const import CONF_ACCOUNTS, CONF_KEY, CONF_URL, CONF_WEBHOOK_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,6 +63,11 @@ class NexviewConfigFlow(ConfigFlow, domain=DOMAIN):
     """Ask, check, save."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> NexviewOptionsFlow:
+        return NexviewOptionsFlow()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -146,6 +164,59 @@ class NexviewConfigFlow(ConfigFlow, domain=DOMAIN):
         except NexviewError:
             _LOGGER.exception("Unexpected answer from Nexview at %s", url)
             return None, "unknown"
+
+
+class NexviewOptionsFlow(OptionsFlowWithReload):
+    """Which accounts get entities of their own.
+
+    ⚠️ **Off by default, and it stays that way.** A house with thirty accounts
+    would otherwise be handed a hundred and twenty entities by an integration
+    it just installed, and every new Nexview account would quietly add four
+    more. The house figures are there without picking anybody.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        coordinator = self.config_entry.runtime_data
+        if not coordinator.data.identity.may(CAP_ADMINISTER):
+            # A personal key sees no other accounts, so there is nothing to
+            # choose. Saying so beats an empty list with no explanation.
+            return self.async_abort(reason="no_accounts_visible")
+
+        try:
+            accounts = await coordinator.client.accounts()
+        except NexviewError:
+            return self.async_abort(reason="cannot_connect")
+
+        if not accounts:
+            return self.async_abort(reason="no_accounts_visible")
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_ACCOUNTS,
+                        default=self.config_entry.options.get(CONF_ACCOUNTS, []),
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=[
+                                SelectOptionDict(
+                                    value=str(a.user_id), label=a.name
+                                )
+                                for a in sorted(accounts, key=lambda a: a.name.lower())
+                            ],
+                            multiple=True,
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    )
+                }
+            ),
+        )
 
 
 def _tidy_url(raw: str) -> str:

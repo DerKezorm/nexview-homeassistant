@@ -62,3 +62,60 @@ cancel_request:
       selector:
         config_entry:
           integration: nexview
+
+search:
+  fields:
+    query:
+      required: true
+      example: Dune
+      selector:
+        text:
+    media_type:
+      required: false
+      default: movie
+      selector:
+        select:
+          options:
+            - movie
+            - tv
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: nexview
+
+list_requests:
+  fields:
+    status:
+      required: false
+      example: pending_approval
+      selector:
+        text:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: nexview
+
+active_downloads:
+  fields:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: nexview
+
+get_quota:
+  fields:
+    account_id:
+      required: false
+      example: 3
+      selector:
+        number:
+          min: 1
+          mode: box
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: nexview

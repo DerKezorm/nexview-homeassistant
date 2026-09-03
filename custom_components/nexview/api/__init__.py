@@ -19,11 +19,15 @@ from .models import (
     CAP_READ,
     CAP_REQUEST,
     Account,
+    AccountUsage,
     Identity,
     Instance,
     KeyInfo,
+    Quota,
+    Release,
     Snapshot,
     Tile,
+    Version,
 )
 
 __all__ = [
@@ -35,6 +39,7 @@ __all__ = [
     "KEY_PREFIX",
     "MIN_VERSION",
     "Account",
+    "AccountUsage",
     "Identity",
     "Instance",
     "KeyInfo",
@@ -44,6 +49,9 @@ __all__ = [
     "NexviewError",
     "NexviewNotFoundError",
     "NexviewTooOldError",
+    "Quota",
+    "Release",
     "Snapshot",
     "Tile",
+    "Version",
 ]

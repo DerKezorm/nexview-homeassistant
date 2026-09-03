@@ -44,6 +44,12 @@
       },
       "push_active": {
         "name": "Push connected"
+      },
+      "instance_reachable": {
+        "name": "Reachable"
+      },
+      "quota_exhausted": {
+        "name": "Allowance used up"
       }
     },
     "sensor": {
@@ -79,6 +85,30 @@
       },
       "series": {
         "name": "Series"
+      },
+      "movie_quota_used": {
+        "name": "Movies used"
+      },
+      "movie_quota_remaining": {
+        "name": "Movies left"
+      },
+      "series_quota_used": {
+        "name": "Series used"
+      },
+      "series_quota_remaining": {
+        "name": "Series left"
+      },
+      "storage_used": {
+        "name": "Storage used"
+      },
+      "storage_remaining": {
+        "name": "Storage left"
+      },
+      "instance_problems": {
+        "name": "Problems"
+      },
+      "instance_version": {
+        "name": "Version"
       }
     },
     "event": {
@@ -124,6 +154,30 @@
             }
           }
         }
+      }
+    },
+    "button": {
+      "check_update": {
+        "name": "Check for updates"
+      },
+      "storage_sync": {
+        "name": "Reconcile storage"
+      },
+      "acknowledge_findings": {
+        "name": "Mark findings as seen"
+      },
+      "test_connection": {
+        "name": "Test connection"
+      }
+    },
+    "calendar": {
+      "upcoming": {
+        "name": "Upcoming"
+      }
+    },
+    "update": {
+      "nexview": {
+        "name": "Nexview"
       }
     }
   },
@@ -187,6 +241,62 @@
           "description": "Which Nexview, if more than one is connected."
         }
       }
+    },
+    "search": {
+      "name": "Search",
+      "description": "Looks a title up in TMDB and answers with what it found. Changes nothing - use the result to decide what to request.",
+      "fields": {
+        "query": {
+          "name": "Title",
+          "description": "What to look for."
+        },
+        "media_type": {
+          "name": "Kind",
+          "description": "Movie or series. Movies if not given."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Which Nexview, if more than one is connected."
+        }
+      }
+    },
+    "list_requests": {
+      "name": "List requests",
+      "description": "Answers with the requests and what became of them. Carries the request number that the deciding actions need.",
+      "fields": {
+        "status": {
+          "name": "Status",
+          "description": "Only requests in this state, for example pending_approval, downloaded or rejected. All of them if left empty."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Which Nexview, if more than one is connected."
+        }
+      }
+    },
+    "active_downloads": {
+      "name": "Active downloads",
+      "description": "Answers with what is being fetched right now, including how far along each one is.",
+      "fields": {
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Which Nexview, if more than one is connected."
+        }
+      }
+    },
+    "get_quota": {
+      "name": "Get allowances",
+      "description": "Answers with what each account has used of its allowances, for titles and for storage. Both always apply in Nexview, and either one being full stops a request.",
+      "fields": {
+        "account_id": {
+          "name": "Account",
+          "description": "One account by its number. All of them if left empty."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Which Nexview, if more than one is connected."
+        }
+      }
     }
   },
   "exceptions": {
@@ -207,12 +317,30 @@
     },
     "unknown_request": {
       "message": "There is no request {request_id} in Nexview. It may have been decided or removed already."
+    },
+    "unknown_instance": {
+      "message": "Nexview does not know an instance called {instance}."
     }
   },
   "issues": {
     "push_missing": {
       "title": "Nexview cannot reach Home Assistant",
       "description": "{name} is connected and its figures are up to date, but Nexview cannot call back, so events arrive late or not at all. Home Assistant is asking every 30 seconds instead.\n\nNexview has to be able to reach {url}. If it can, add that address by hand in Nexview under Settings, Notifications, Webhook, and confirm it with the code from the test message."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Which accounts get their own entities",
+        "description": "By default Nexview shows only the totals for the house. Pick accounts here to get their allowances as entities of their own. Each account adds seven, so a large installation is better off picking a few.",
+        "data": {
+          "accounts": "Accounts"
+        }
+      }
+    },
+    "abort": {
+      "no_accounts_visible": "This key cannot see other accounts, so there is nothing to pick.",
+      "cannot_connect": "Nexview did not answer. Try again in a moment."
     }
   }
 }

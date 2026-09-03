@@ -12,7 +12,12 @@ import logging
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import (
+    HomeAssistant,
+    ServiceCall,
+    ServiceResponse,
+    SupportsResponse,
+)
 from homeassistant.exceptions import (
     ConfigEntryAuthFailed,
     HomeAssistantError,
@@ -32,16 +37,24 @@ from .api import (
     NexviewNotFoundError,
 )
 from .const import (
+    ATTR_ACCOUNT,
     ATTR_CONFIG_ENTRY,
+    ATTR_MEDIA_TYPE,
+    ATTR_QUERY,
     ATTR_REASON,
     ATTR_REQUEST_ID,
+    ATTR_STATUS,
     CONF_KEY,
     CONF_URL,
     DOMAIN,
+    SERVICE_ACTIVE_DOWNLOADS,
     SERVICE_APPROVE,
     SERVICE_CANCEL,
     SERVICE_DEFER,
+    SERVICE_GET_QUOTA,
+    SERVICE_LIST_REQUESTS,
     SERVICE_REJECT,
+    SERVICE_SEARCH,
 )
 from .coordinator import NexviewConfigEntry, NexviewCoordinator
 from .webhook import NexviewWebhook
@@ -52,8 +65,11 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 PLATFORMS: list[Platform] = [
     Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.CALENDAR,
     Platform.EVENT,
     Platform.SENSOR,
+    Platform.UPDATE,
 ]
 
 _DECISION_SCHEMA = vol.Schema(
@@ -64,6 +80,19 @@ _DECISION_SCHEMA = vol.Schema(
 )
 
 _REJECT_SCHEMA = _DECISION_SCHEMA.extend({vol.Optional(ATTR_REASON): cv.string})
+
+_ENTRY_ONLY_SCHEMA = vol.Schema({vol.Optional(ATTR_CONFIG_ENTRY): cv.string})
+
+_SEARCH_SCHEMA = _ENTRY_ONLY_SCHEMA.extend(
+    {
+        vol.Required(ATTR_QUERY): cv.string,
+        vol.Optional(ATTR_MEDIA_TYPE, default="movie"): vol.In(["movie", "tv"]),
+    }
+)
+
+_LIST_SCHEMA = _ENTRY_ONLY_SCHEMA.extend({vol.Optional(ATTR_STATUS): cv.string})
+
+_QUOTA_SCHEMA = _ENTRY_ONLY_SCHEMA.extend({vol.Optional(ATTR_ACCOUNT): cv.positive_int})
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -134,8 +163,14 @@ def _async_report_push(
 
 
 async def _async_register_services(hass: HomeAssistant) -> None:
-    async def _entry_for(call: ServiceCall) -> NexviewConfigEntry:
-        """Find the entry this call means, and refuse clearly if there is none."""
+    async def _entry_for(
+        call: ServiceCall, *, needs_decide: bool = True
+    ) -> NexviewConfigEntry:
+        """Find the entry this call means, and refuse clearly if there is none.
+
+        ``needs_decide`` is off for the actions that only answer: reading what
+        is waiting has nothing to do with being allowed to decide it.
+        """
         entries: list[NexviewConfigEntry] = [
             entry
             for entry in hass.config_entries.async_loaded_entries(DOMAIN)
@@ -151,7 +186,7 @@ async def _async_register_services(hass: HomeAssistant) -> None:
                 translation_domain=DOMAIN, translation_key="ambiguous_entry"
             )
         entry = entries[0]
-        if not entry.runtime_data.data.identity.may(CAP_DECIDE):
+        if needs_decide and not entry.runtime_data.data.identity.may(CAP_DECIDE):
             raise ServiceValidationError(
                 translation_domain=DOMAIN,
                 translation_key="may_not_decide",
@@ -204,6 +239,85 @@ async def _async_register_services(hass: HomeAssistant) -> None:
             await _run(call, _service)
 
         hass.services.async_register(DOMAIN, service, handler, schema=schema)
+
+    # --- The ones that answer ---------------------------------------------
+    #
+    # ⚠️ **This is where lists belong.** Home Assistant is retiring long lists
+    # in entity attributes - the ones on Sonarr expire with 2026.9 - and this
+    # is the replacement: ask, get an answer, use it in the automation that
+    # asked. An entity would have to hold the whole list all day for the one
+    # minute a year somebody looks at it.
+
+    def _quota_json(account) -> dict[str, object]:
+        return {
+            "account_id": account.user_id,
+            "name": account.name,
+            "movies": {
+                "used": account.movies.used,
+                "limit": account.movies.limit,
+                "remaining": account.movies.remaining,
+            },
+            "series": {
+                "used": account.series.used,
+                "limit": account.series.limit,
+                "remaining": account.series.remaining,
+            },
+            "storage_bytes": {
+                "used": account.storage.used,
+                "limit": account.storage.limit,
+                "remaining": account.storage.remaining,
+            },
+        }
+
+    async def _answer(call: ServiceCall, what: str) -> ServiceResponse:
+        entry = await _entry_for(call, needs_decide=False)
+        client = entry.runtime_data.client
+        try:
+            if what == SERVICE_SEARCH:
+                return {
+                    "results": await client.search(
+                        call.data[ATTR_MEDIA_TYPE], call.data[ATTR_QUERY]
+                    )
+                }
+            if what == SERVICE_LIST_REQUESTS:
+                return {"requests": await client.requests(call.data.get(ATTR_STATUS))}
+            if what == SERVICE_ACTIVE_DOWNLOADS:
+                return {"downloads": await client.active_downloads()}
+
+            wanted = call.data.get(ATTR_ACCOUNT)
+            return {
+                "accounts": [
+                    _quota_json(a)
+                    for a in await client.accounts()
+                    if wanted is None or a.user_id == wanted
+                ]
+            }
+        except NexviewAuthError as err:
+            raise ConfigEntryAuthFailed(str(err)) from err
+        except NexviewConnectionError as err:
+            raise _failed(err, "unreachable") from err
+        except NexviewError as err:
+            raise _failed(err, "request_failed") from err
+
+    for service, schema in (
+        (SERVICE_SEARCH, _SEARCH_SCHEMA),
+        (SERVICE_LIST_REQUESTS, _LIST_SCHEMA),
+        (SERVICE_ACTIVE_DOWNLOADS, _ENTRY_ONLY_SCHEMA),
+        (SERVICE_GET_QUOTA, _QUOTA_SCHEMA),
+    ):
+
+        async def answering(
+            call: ServiceCall, _service: str = service
+        ) -> ServiceResponse:
+            return await _answer(call, _service)
+
+        hass.services.async_register(
+            DOMAIN,
+            service,
+            answering,
+            schema=schema,
+            supports_response=SupportsResponse.ONLY,
+        )
 
 
 def _failed(err: Exception, key: str) -> HomeAssistantError:

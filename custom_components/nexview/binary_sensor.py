@@ -13,11 +13,11 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 from homeassistant.const import EntityCategory
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import NexviewConfigEntry, NexviewCoordinator
-from .entity import NexviewEntity
+from .entity import NexviewAccountEntity, NexviewEntity, NexviewInstanceEntity
 
 
 async def async_setup_entry(
@@ -27,6 +27,35 @@ async def async_setup_entry(
 ) -> None:
     coordinator = entry.runtime_data
     async_add_entities([NexviewReachable(coordinator), NexviewPushing(coordinator)])
+
+    known_instances: set[str] = set()
+    known_accounts: set[int] = set()
+
+    @callback
+    def _add_new() -> None:
+        neu: list[BinarySensorEntity] = []
+
+        current = set(coordinator.data.instances)
+        known_instances.intersection_update(current)
+        neu.extend(
+            NexviewInstanceReachable(coordinator, key)
+            for key in current - known_instances
+        )
+        known_instances.update(current)
+
+        current_accounts = set(coordinator.data.accounts)
+        known_accounts.intersection_update(current_accounts)
+        neu.extend(
+            NexviewQuotaExhausted(coordinator, user_id)
+            for user_id in current_accounts - known_accounts
+        )
+        known_accounts.update(current_accounts)
+
+        if neu:
+            async_add_entities(neu)
+
+    _add_new()
+    entry.async_on_unload(coordinator.async_add_listener(_add_new))
 
 
 class NexviewReachable(NexviewEntity, BinarySensorEntity):
@@ -72,3 +101,48 @@ class NexviewPushing(NexviewEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         return self.coordinator.pushing
+
+
+class NexviewInstanceReachable(NexviewInstanceEntity, BinarySensorEntity):
+    """Whether this Radarr or Sonarr answers Nexview."""
+
+    entity_description = BinarySensorEntityDescription(
+        key="reachable",
+        translation_key="instance_reachable",
+        device_class=BinarySensorDeviceClass.CONNECTIVITY,
+    )
+
+    def __init__(self, coordinator: NexviewCoordinator, instance_key: str) -> None:
+        super().__init__(coordinator, instance_key, "reachable")
+
+    @property
+    def is_on(self) -> bool:
+        return bool(self.instance and self.instance.reachable)
+
+
+class NexviewQuotaExhausted(NexviewAccountEntity, BinarySensorEntity):
+    """Whether this account has used up an allowance.
+
+    ⚠️ **Both allowances count, and either one is enough.** Nexview applies
+    the number of titles and the storage figure at the same time, so an
+    account that has room on one and none on the other cannot request either
+    way. One sensor that says "cannot request right now" is the honest answer;
+    two separate ones would invite an automation that only checks the wrong
+    half.
+    """
+
+    entity_description = BinarySensorEntityDescription(
+        key="quota_exhausted",
+        translation_key="quota_exhausted",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+    )
+
+    def __init__(self, coordinator: NexviewCoordinator, user_id: int) -> None:
+        super().__init__(coordinator, user_id, "quota_exhausted")
+
+    @property
+    def is_on(self) -> bool:
+        a = self.account
+        if a is None:
+            return False
+        return a.movies.exhausted or a.series.exhausted or a.storage.exhausted

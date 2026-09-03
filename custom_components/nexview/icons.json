@@ -9,28 +9,103 @@
       }
     },
     "sensor": {
-      "pending_requests": { "default": "mdi:inbox-arrow-down" },
-      "processing_requests": { "default": "mdi:progress-download" },
-      "failed_requests": { "default": "mdi:alert-circle-outline" },
-      "findings_error": { "default": "mdi:alert-octagon" },
-      "findings_warning": { "default": "mdi:alert" },
-      "findings_hint": { "default": "mdi:information-outline" },
-      "open_tickets": { "default": "mdi:ticket-outline" },
-      "free_space": { "default": "mdi:harddisk" },
-      "used_space": { "default": "mdi:harddisk-plus" },
-      "movies": { "default": "mdi:movie-open-outline" },
-      "series": { "default": "mdi:television-classic" }
+      "pending_requests": {
+        "default": "mdi:inbox-arrow-down"
+      },
+      "processing_requests": {
+        "default": "mdi:progress-download"
+      },
+      "failed_requests": {
+        "default": "mdi:alert-circle-outline"
+      },
+      "findings_error": {
+        "default": "mdi:alert-octagon"
+      },
+      "findings_warning": {
+        "default": "mdi:alert"
+      },
+      "findings_hint": {
+        "default": "mdi:information-outline"
+      },
+      "open_tickets": {
+        "default": "mdi:ticket-outline"
+      },
+      "free_space": {
+        "default": "mdi:harddisk"
+      },
+      "used_space": {
+        "default": "mdi:harddisk-plus"
+      },
+      "movies": {
+        "default": "mdi:movie-open-outline"
+      },
+      "series": {
+        "default": "mdi:television-classic"
+      },
+      "movie_quota_used": {
+        "default": "mdi:movie-check-outline"
+      },
+      "movie_quota_remaining": {
+        "default": "mdi:movie-plus-outline"
+      },
+      "series_quota_used": {
+        "default": "mdi:television-play"
+      },
+      "series_quota_remaining": {
+        "default": "mdi:television-plus"
+      },
+      "storage_used": {
+        "default": "mdi:database"
+      },
+      "storage_remaining": {
+        "default": "mdi:database-plus"
+      },
+      "instance_problems": {
+        "default": "mdi:alert-circle-outline"
+      },
+      "instance_version": {
+        "default": "mdi:tag-outline"
+      }
     },
     "event": {
-      "requests": { "default": "mdi:playlist-check" },
-      "storage": { "default": "mdi:database-arrow-right-outline" },
-      "operations": { "default": "mdi:cog-outline" }
+      "requests": {
+        "default": "mdi:playlist-check"
+      },
+      "storage": {
+        "default": "mdi:database-arrow-right-outline"
+      },
+      "operations": {
+        "default": "mdi:cog-outline"
+      }
+    },
+    "button": {
+      "check_update": {
+        "default": "mdi:update"
+      },
+      "storage_sync": {
+        "default": "mdi:database-sync"
+      },
+      "acknowledge_findings": {
+        "default": "mdi:check-all"
+      },
+      "test_connection": {
+        "default": "mdi:lan-connect"
+      }
+    },
+    "calendar": {
+      "upcoming": {
+        "default": "mdi:calendar-star"
+      }
     }
   },
   "services": {
     "approve_request": "mdi:check-circle-outline",
     "reject_request": "mdi:close-circle-outline",
     "defer_request": "mdi:clock-outline",
-    "cancel_request": "mdi:cancel"
+    "cancel_request": "mdi:cancel",
+    "search": "mdi:magnify",
+    "list_requests": "mdi:format-list-bulleted",
+    "active_downloads": "mdi:progress-download",
+    "get_quota": "mdi:gauge"
   }
 }
