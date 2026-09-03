@@ -1,0 +1,218 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Nexview verbinden",
+        "description": "Braucht Nexview {min_version} oder neuer. Den Schlüssel legst du in Nexview in deinem Profil unter Zugriffs-Schlüssel an.",
+        "data": {
+          "url": "Adresse",
+          "api_key": "Zugriffs-Schlüssel"
+        },
+        "data_description": {
+          "url": "Wo Nexview antwortet, zum Beispiel http://nexview.local:8000",
+          "api_key": "Ein persönlicher Zugriffs-Schlüssel, er beginnt mit nxv_. Was hier zu sehen ist und was geht, richtet sich nach dem Konto, zu dem der Schlüssel gehört. Ein Schlüssel auf „nur lesen“ zeigt Zahlen, entscheidet aber nichts."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Nexview hat den Schlüssel abgelehnt",
+        "description": "{name} braucht einen neuen Zugriffs-Schlüssel. Der alte wurde widerrufen, ist abgelaufen, oder sein Konto ist nicht mehr aktiv.",
+        "data": {
+          "api_key": "Zugriffs-Schlüssel"
+        },
+        "data_description": {
+          "api_key": "Der neue Schlüssel muss zum selben Nexview-Konto gehören wie vorher."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unter dieser Adresse antwortet nichts. Läuft Nexview, und ist es von Home Assistant aus erreichbar?",
+      "invalid_auth": "Nexview hat den Schlüssel abgelehnt. Vielleicht wurde er widerrufen oder ist abgelaufen.",
+      "not_a_key": "Das ist kein Zugriffs-Schlüssel. Nexview-Schlüssel beginnen mit nxv_ und entstehen im Profil unter Zugriffs-Schlüssel, nicht aus deinem Kennwort.",
+      "too_old": "Dieses Nexview ist zu alt für die Anbindung. Nötig ist {min_version} oder neuer.",
+      "wrong_account": "Dieser Schlüssel gehört zu einem anderen Nexview-Konto. Nimm einen Schlüssel desselben Kontos, oder richte einen zweiten Eintrag ein.",
+      "unknown": "Nexview hat etwas Unerwartetes geantwortet. Die Einzelheiten stehen im Protokoll."
+    },
+    "abort": {
+      "already_configured": "Dieses Nexview-Konto ist bereits verbunden.",
+      "reauth_successful": "Nexview hat den neuen Schlüssel angenommen."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "reachable": {
+        "name": "Erreichbar"
+      },
+      "push_active": {
+        "name": "Rückkanal steht"
+      }
+    },
+    "sensor": {
+      "pending_requests": {
+        "name": "Wartende Anfragen"
+      },
+      "processing_requests": {
+        "name": "Laufende Anfragen"
+      },
+      "failed_requests": {
+        "name": "Fehlgeschlagen, letzte 7 Tage"
+      },
+      "findings_error": {
+        "name": "Befunde, Fehler"
+      },
+      "findings_warning": {
+        "name": "Befunde, Warnungen"
+      },
+      "findings_hint": {
+        "name": "Befunde, Hinweise"
+      },
+      "open_tickets": {
+        "name": "Offene Tickets"
+      },
+      "free_space": {
+        "name": "Freier Speicher"
+      },
+      "used_space": {
+        "name": "Belegt durch die Bibliothek"
+      },
+      "movies": {
+        "name": "Filme"
+      },
+      "series": {
+        "name": "Serien"
+      }
+    },
+    "event": {
+      "requests": {
+        "name": "Anfragen",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "pending": "Anfrage eingegangen",
+              "approved": "Anfrage genehmigt",
+              "rejected": "Anfrage abgelehnt",
+              "cancelled": "Anfrage abgebrochen",
+              "deferred": "Anfrage zurückgestellt",
+              "downloaded": "Download fertig"
+            }
+          }
+        }
+      },
+      "storage": {
+        "name": "Speicher",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "release_requested": "Abgabe erbeten",
+              "released": "Abgegeben",
+              "kept": "Behalten",
+              "deleted": "Gelöscht",
+              "grew": "Gewachsen"
+            }
+          }
+        }
+      },
+      "operations": {
+        "name": "Betrieb",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "instance_health": "Instanz meldet ein Problem",
+              "ticket": "Neues Ticket",
+              "feedback": "Neue Rückmeldung",
+              "user_imported": "Konto übernommen",
+              "other": "Andere Meldung"
+            }
+          }
+        }
+      }
+    }
+  },
+  "services": {
+    "approve_request": {
+      "name": "Anfrage genehmigen",
+      "description": "Genehmigt eine wartende Anfrage, genau wie ein Klick auf Genehmigen in Nexview.",
+      "fields": {
+        "request_id": {
+          "name": "Anfrage",
+          "description": "Die Nummer der Anfrage. Sie steht in der Meldung und kommt aus der Auflisten-Aktion."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Welches Nexview, falls mehrere verbunden sind."
+        }
+      }
+    },
+    "reject_request": {
+      "name": "Anfrage ablehnen",
+      "description": "Lehnt eine wartende Anfrage ab. Wer sie gestellt hat, erfährt es.",
+      "fields": {
+        "request_id": {
+          "name": "Anfrage",
+          "description": "Die Nummer der Anfrage."
+        },
+        "reason": {
+          "name": "Begründung",
+          "description": "Wird demjenigen gezeigt, der gefragt hat. Leer lassen, um ohne Begründung abzulehnen."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Welches Nexview, falls mehrere verbunden sind."
+        }
+      }
+    },
+    "defer_request": {
+      "name": "Anfrage zurückstellen",
+      "description": "Legt eine Anfrage beiseite, ohne sie zu entscheiden. Sie bleibt in Nexview sichtbar.",
+      "fields": {
+        "request_id": {
+          "name": "Anfrage",
+          "description": "Die Nummer der Anfrage."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Welches Nexview, falls mehrere verbunden sind."
+        }
+      }
+    },
+    "cancel_request": {
+      "name": "Anfrage abbrechen",
+      "description": "Bricht eine bereits laufende Anfrage ab.",
+      "fields": {
+        "request_id": {
+          "name": "Anfrage",
+          "description": "Die Nummer der Anfrage."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Welches Nexview, falls mehrere verbunden sind."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "no_entry": {
+      "message": "Es ist kein Nexview verbunden, oder der Eintrag ist nicht geladen."
+    },
+    "ambiguous_entry": {
+      "message": "Es sind mehrere Nexview verbunden. Gib an, welches gemeint ist."
+    },
+    "may_not_decide": {
+      "message": "Der Schlüssel für {name} darf keine Anfragen entscheiden. Nimm einen Schlüssel eines Kontos, das genehmigen darf, und achte darauf, dass er nicht auf „nur lesen“ steht."
+    },
+    "unreachable": {
+      "message": "Nexview hat nicht geantwortet: {error}"
+    },
+    "request_failed": {
+      "message": "Nexview hat abgelehnt: {error}"
+    },
+    "unknown_request": {
+      "message": "In Nexview gibt es keine Anfrage {request_id}. Vielleicht wurde sie schon entschieden oder entfernt."
+    }
+  },
+  "issues": {
+    "push_missing": {
+      "title": "Nexview erreicht Home Assistant nicht",
+      "description": "{name} ist verbunden und die Zahlen stimmen, aber Nexview kann nicht zurückrufen. Ereignisse kommen deshalb spät oder gar nicht, und Home Assistant fragt stattdessen alle 30 Sekunden nach.\n\nNexview muss {url} erreichen können. Wenn es das kann, trag die Adresse in Nexview von Hand ein unter Einstellungen, Benachrichtigungen, Webhook, und bestätige sie mit dem Code aus der Testnachricht."
+    }
+  }
+}

@@ -1,0 +1,64 @@
+approve_request:
+  fields:
+    request_id:
+      required: true
+      example: 42
+      selector:
+        number:
+          min: 1
+          mode: box
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: nexview
+
+reject_request:
+  fields:
+    request_id:
+      required: true
+      example: 42
+      selector:
+        number:
+          min: 1
+          mode: box
+    reason:
+      required: false
+      example: Already in the library
+      selector:
+        text:
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: nexview
+
+defer_request:
+  fields:
+    request_id:
+      required: true
+      example: 42
+      selector:
+        number:
+          min: 1
+          mode: box
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: nexview
+
+cancel_request:
+  fields:
+    request_id:
+      required: true
+      example: 42
+      selector:
+        number:
+          min: 1
+          mode: box
+    config_entry_id:
+      required: false
+      selector:
+        config_entry:
+          integration: nexview

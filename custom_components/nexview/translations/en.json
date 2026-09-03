@@ -1,0 +1,218 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Nexview",
+        "description": "Needs Nexview {min_version} or newer. Create the key in Nexview under your profile, in Access keys.",
+        "data": {
+          "url": "Address",
+          "api_key": "Access key"
+        },
+        "data_description": {
+          "url": "Where Nexview answers, for example http://nexview.local:8000",
+          "api_key": "A personal access key starting with nxv_. What this integration can show and do follows the account the key belongs to, and a key marked read only will show figures but decide nothing."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Nexview rejected the key",
+        "description": "{name} needs a new access key. The old one was revoked, expired, or belongs to an account that is no longer active.",
+        "data": {
+          "api_key": "Access key"
+        },
+        "data_description": {
+          "api_key": "The new key has to belong to the same Nexview account as before."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No answer from that address. Check that Nexview is running and reachable from Home Assistant.",
+      "invalid_auth": "Nexview rejected the key. It may have been revoked or expired.",
+      "not_a_key": "That is not an access key. Nexview keys start with nxv_ and are created in your profile under Access keys, not with your password.",
+      "too_old": "This Nexview is too old for the integration. It needs {min_version} or newer.",
+      "wrong_account": "That key belongs to a different Nexview account. Use a key from the same account, or add a second entry instead.",
+      "unknown": "Nexview answered with something unexpected. The log has the details."
+    },
+    "abort": {
+      "already_configured": "This Nexview account is already connected.",
+      "reauth_successful": "Nexview accepted the new key."
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "reachable": {
+        "name": "Reachable"
+      },
+      "push_active": {
+        "name": "Push connected"
+      }
+    },
+    "sensor": {
+      "pending_requests": {
+        "name": "Waiting requests"
+      },
+      "processing_requests": {
+        "name": "Requests in progress"
+      },
+      "failed_requests": {
+        "name": "Failed in the last 7 days"
+      },
+      "findings_error": {
+        "name": "Findings, errors"
+      },
+      "findings_warning": {
+        "name": "Findings, warnings"
+      },
+      "findings_hint": {
+        "name": "Findings, hints"
+      },
+      "open_tickets": {
+        "name": "Open tickets"
+      },
+      "free_space": {
+        "name": "Free space"
+      },
+      "used_space": {
+        "name": "Used by the library"
+      },
+      "movies": {
+        "name": "Movies"
+      },
+      "series": {
+        "name": "Series"
+      }
+    },
+    "event": {
+      "requests": {
+        "name": "Requests",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "pending": "Request received",
+              "approved": "Request approved",
+              "rejected": "Request rejected",
+              "cancelled": "Request cancelled",
+              "deferred": "Request deferred",
+              "downloaded": "Download finished"
+            }
+          }
+        }
+      },
+      "storage": {
+        "name": "Storage",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "release_requested": "Release asked for",
+              "released": "Released",
+              "kept": "Kept",
+              "deleted": "Deleted",
+              "grew": "Grew"
+            }
+          }
+        }
+      },
+      "operations": {
+        "name": "Operations",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "instance_health": "Instance reports a problem",
+              "ticket": "New ticket",
+              "feedback": "New feedback",
+              "user_imported": "Account imported",
+              "other": "Other notification"
+            }
+          }
+        }
+      }
+    }
+  },
+  "services": {
+    "approve_request": {
+      "name": "Approve request",
+      "description": "Approves a waiting request, exactly as pressing approve in Nexview would.",
+      "fields": {
+        "request_id": {
+          "name": "Request",
+          "description": "The number of the request. Notifications carry it, and the list action returns it."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Which Nexview, if more than one is connected."
+        }
+      }
+    },
+    "reject_request": {
+      "name": "Reject request",
+      "description": "Rejects a waiting request. The person who asked is told.",
+      "fields": {
+        "request_id": {
+          "name": "Request",
+          "description": "The number of the request."
+        },
+        "reason": {
+          "name": "Reason",
+          "description": "Shown to the person who asked. Leave empty to reject without one."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Which Nexview, if more than one is connected."
+        }
+      }
+    },
+    "defer_request": {
+      "name": "Defer request",
+      "description": "Puts a request aside without deciding it. It stays visible in Nexview.",
+      "fields": {
+        "request_id": {
+          "name": "Request",
+          "description": "The number of the request."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Which Nexview, if more than one is connected."
+        }
+      }
+    },
+    "cancel_request": {
+      "name": "Cancel request",
+      "description": "Cancels a request that is already running.",
+      "fields": {
+        "request_id": {
+          "name": "Request",
+          "description": "The number of the request."
+        },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Which Nexview, if more than one is connected."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "no_entry": {
+      "message": "No Nexview is connected, or the entry is not loaded."
+    },
+    "ambiguous_entry": {
+      "message": "More than one Nexview is connected. Name which one this action means."
+    },
+    "may_not_decide": {
+      "message": "The key used for {name} may not decide requests. Use a key from an account that can approve, and make sure it is not marked read only."
+    },
+    "unreachable": {
+      "message": "Nexview did not answer: {error}"
+    },
+    "request_failed": {
+      "message": "Nexview refused: {error}"
+    },
+    "unknown_request": {
+      "message": "There is no request {request_id} in Nexview. It may have been decided or removed already."
+    }
+  },
+  "issues": {
+    "push_missing": {
+      "title": "Nexview cannot reach Home Assistant",
+      "description": "{name} is connected and its figures are up to date, but Nexview cannot call back, so events arrive late or not at all. Home Assistant is asking every 30 seconds instead.\n\nNexview has to be able to reach {url}. If it can, add that address by hand in Nexview under Settings, Notifications, Webhook, and confirm it with the code from the test message."
+    }
+  }
+}

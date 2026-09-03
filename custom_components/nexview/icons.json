@@ -1,0 +1,36 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "push_active": {
+        "default": "mdi:phone-incoming-outline",
+        "state": {
+          "off": "mdi:phone-off-outline"
+        }
+      }
+    },
+    "sensor": {
+      "pending_requests": { "default": "mdi:inbox-arrow-down" },
+      "processing_requests": { "default": "mdi:progress-download" },
+      "failed_requests": { "default": "mdi:alert-circle-outline" },
+      "findings_error": { "default": "mdi:alert-octagon" },
+      "findings_warning": { "default": "mdi:alert" },
+      "findings_hint": { "default": "mdi:information-outline" },
+      "open_tickets": { "default": "mdi:ticket-outline" },
+      "free_space": { "default": "mdi:harddisk" },
+      "used_space": { "default": "mdi:harddisk-plus" },
+      "movies": { "default": "mdi:movie-open-outline" },
+      "series": { "default": "mdi:television-classic" }
+    },
+    "event": {
+      "requests": { "default": "mdi:playlist-check" },
+      "storage": { "default": "mdi:database-arrow-right-outline" },
+      "operations": { "default": "mdi:cog-outline" }
+    }
+  },
+  "services": {
+    "approve_request": "mdi:check-circle-outline",
+    "reject_request": "mdi:close-circle-outline",
+    "defer_request": "mdi:clock-outline",
+    "cancel_request": "mdi:cancel"
+  }
+}
