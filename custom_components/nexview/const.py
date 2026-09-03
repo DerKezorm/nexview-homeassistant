@@ -122,6 +122,7 @@ SERVICE_SEARCH: Final = "search"
 SERVICE_LIST_REQUESTS: Final = "list_requests"
 SERVICE_ACTIVE_DOWNLOADS: Final = "active_downloads"
 SERVICE_GET_QUOTA: Final = "get_quota"
+SERVICE_NOW_PLAYING: Final = "now_playing"
 
 ATTR_REQUEST_ID: Final = "request_id"
 ATTR_QUERY: Final = "query"

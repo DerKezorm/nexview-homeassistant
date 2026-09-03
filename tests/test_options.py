@@ -19,7 +19,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 
 from custom_components.nexview.const import CONF_ACCOUNTS, DOMAIN
 
-from .conftest import ABOUT, HEALTH, IDENTITY_USER, URL, setup_entry
+from .conftest import ABOUT, IDENTITY_USER, URL, setup_entry
 
 
 @pytest.fixture(autouse=True)
@@ -154,13 +154,17 @@ class TestInstanceErrands:
         aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
         aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
         aioclient_mock.get(f"{URL}/api/admin/stats", json={"users": []})
-        aioclient_mock.get(f"{URL}/api/settings/instanzen/gesundheit", json=HEALTH)
         aioclient_mock.get(f"{URL}/api/calendar", json={"days": []})
         aioclient_mock.get(
             f"{URL}/api/v1/admin/requests/pending/count", json={"pending": 0}
         )
         aioclient_mock.get(
-            f"{URL}/api/settings/instanzen/verbindung",
+            f"{URL}/api/settings/qualitaetsprofile/medienserver",
+            json={"server": [], "instanzen": [], "warnungen": []},
+        )
+        aioclient_mock.get(f"{URL}/api/admin/analyse/laufend", json={"wiedergaben": []})
+        aioclient_mock.get(
+            f"{URL}/api/admin/analyse",
             json={
                 "instanzen": [
                     {
@@ -168,8 +172,10 @@ class TestInstanceErrands:
                         "name": "Lidarr",
                         "erreichbar": True,
                         "version": "2.0",
+                        "meldungen": [],
                     }
-                ]
+                ],
+                "abgleich": {},
             },
         )
 

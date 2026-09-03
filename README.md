@@ -11,8 +11,15 @@ the last seven days, findings by severity, open tickets, and how full the
 library is. All of them keep history, so a graph over a month costs nothing.
 
 **Every Radarr and Sonarr as its own device**, hanging off Nexview: whether it
-answers, what it is complaining about, which version it runs, and a button to
-make Nexview talk to it right now.
+answers, what it is complaining about, how much is queued and how much of that
+is stuck, whether it calls Nexview back at all, and a button to make Nexview
+talk to it right now.
+
+**Every media server as its own device.** Plex, Jellyfin and Emby each get one:
+how many titles are on them, how many streams are running, and how many of
+those the server is converting rather than sending as they lie. Who is watching
+what comes from an action, not from a sensor - that belongs to the moment
+somebody asks, not in a database that keeps everything for years.
 
 **Allowances per account**, for the accounts you pick. Nexview applies a number
 of titles and an amount of storage at the same time, either one being full
@@ -34,8 +41,8 @@ subject does not wake automations that care about another.
 
 **Actions that do**: approve, reject, defer, cancel.
 **Actions that answer**: search, list requests, active downloads with progress,
-allowances. Lists live here rather than in entity attributes, which is where
-Home Assistant is moving them anyway.
+allowances, and what is playing right now. Lists live here rather than in
+entity attributes, which is where Home Assistant is moving them anyway.
 
 **Only what your key may do.** Nexview hands out named access keys whose rights
 follow the account they belong to, and a key can additionally be marked read

@@ -63,6 +63,9 @@
       },
       "quota_exhausted": {
         "name": "Kontingent aufgebraucht"
+      },
+      "instance_webhook": {
+        "name": "Ruft zurück"
       }
     },
     "sensor": {
@@ -122,6 +125,30 @@
       },
       "instance_version": {
         "name": "Version"
+      },
+      "oldest_pending": {
+        "name": "Älteste wartende Anfrage"
+      },
+      "account_open_requests": {
+        "name": "Offene Anfragen"
+      },
+      "instance_queue": {
+        "name": "Warteschlange"
+      },
+      "instance_queue_stuck": {
+        "name": "Hängt in der Warteschlange"
+      },
+      "instance_gaps": {
+        "name": "Fehlende Titel"
+      },
+      "server_playing": {
+        "name": "Läuft gerade"
+      },
+      "server_transcoding": {
+        "name": "Wird umgerechnet"
+      },
+      "server_titles": {
+        "name": "Titel auf diesem Server"
       }
     },
     "event": {
@@ -305,6 +332,16 @@
           "name": "Konto",
           "description": "Ein Konto über seine Nummer. Leer lassen für alle."
         },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Welches Nexview, falls mehrere verbunden sind."
+        }
+      }
+    },
+    "now_playing": {
+      "name": "Was gerade läuft",
+      "description": "Antwortet mit dem, was auf den verbundenen Medienservern gerade gesehen wird, samt Konto, Gerät und ob der Server umrechnet. Bewusst eine Aktion und kein Sensor: Das sagt, wer was geschaut hat, und das gehört nicht in eine Datenbank, die alles jahrelang behält.",
+      "fields": {
         "config_entry_id": {
           "name": "Nexview",
           "description": "Welches Nexview, falls mehrere verbunden sind."

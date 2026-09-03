@@ -63,6 +63,9 @@
       },
       "quota_exhausted": {
         "name": "Allowance used up"
+      },
+      "instance_webhook": {
+        "name": "Calls back"
       }
     },
     "sensor": {
@@ -122,6 +125,30 @@
       },
       "instance_version": {
         "name": "Version"
+      },
+      "oldest_pending": {
+        "name": "Oldest request waiting"
+      },
+      "account_open_requests": {
+        "name": "Open requests"
+      },
+      "instance_queue": {
+        "name": "Queue"
+      },
+      "instance_queue_stuck": {
+        "name": "Stuck in queue"
+      },
+      "instance_gaps": {
+        "name": "Missing titles"
+      },
+      "server_playing": {
+        "name": "Playing now"
+      },
+      "server_transcoding": {
+        "name": "Being converted"
+      },
+      "server_titles": {
+        "name": "Titles on this server"
       }
     },
     "event": {
@@ -305,6 +332,16 @@
           "name": "Account",
           "description": "One account by its number. All of them if left empty."
         },
+        "config_entry_id": {
+          "name": "Nexview",
+          "description": "Which Nexview, if more than one is connected."
+        }
+      }
+    },
+    "now_playing": {
+      "name": "What is playing",
+      "description": "Answers with what is being watched right now on the connected media servers, including who, on which device, and whether the server is converting. Deliberately an action rather than a sensor: this says who watched what, and that does not belong in a database that keeps everything for years.",
+      "fields": {
         "config_entry_id": {
           "name": "Nexview",
           "description": "Which Nexview, if more than one is connected."

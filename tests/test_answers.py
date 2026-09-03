@@ -26,7 +26,7 @@ from custom_components.nexview.const import (
     SERVICE_SEARCH,
 )
 
-from .conftest import ABOUT, HEALTH, IDENTITY_READONLY, INSTANCES, TILE, URL, setup_entry
+from .conftest import ABOUT, IDENTITY_READONLY, TILE, URL, setup_entry
 
 #: What Nexview answers for the request list. Invented titles and invented
 #: people - this repository is public.
@@ -54,6 +54,41 @@ REQUESTS = [
         "laedt_fortschritt": 63.5,
     },
 ]
+
+
+def _nur_lesend(mock: AiohttpClientMocker) -> None:
+    """Dieselbe Kulisse, gesehen durch einen Nur-Lese-Schlüssel."""
+    from .conftest import ANALYSIS, PLAYING, SERVERS
+
+    mock.get(f"{URL}/api/v1/me", json=IDENTITY_READONLY)
+    mock.get(f"{URL}/api/v1/dashboard", json=TILE)
+    mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
+    mock.get(f"{URL}/api/admin/analyse", json=ANALYSIS)
+    mock.get(f"{URL}/api/settings/qualitaetsprofile/medienserver", json=SERVERS)
+    mock.get(f"{URL}/api/admin/analyse/laufend", json=PLAYING)
+    mock.get(f"{URL}/api/admin/stats", json={"users": []})
+    mock.get(f"{URL}/api/calendar", json={"days": []})
+    mock.get(f"{URL}/api/v1/about", json=ABOUT)
+
+
+def _volle_kulisse(mock: AiohttpClientMocker) -> None:
+    """Alles, was ein Betreiber-Schlüssel beim Einrichten abfragt.
+
+    ⚠️ Als Funktion, weil manche Tests die Anfragenliste vorher ersetzen
+    müssen und der Mock den ersten Treffer nimmt.
+    """
+    from .conftest import ANALYSIS, IDENTITY_ADMIN, PLAYING, SERVERS, STATS, TILE
+
+    mock.get(f"{URL}/api/v1/me", json=IDENTITY_ADMIN)
+    mock.get(f"{URL}/api/v1/dashboard", json=TILE)
+    mock.get(f"{URL}/api/v1/admin/requests/pending/count", json={"pending": 4})
+    mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
+    mock.get(f"{URL}/api/admin/analyse", json=ANALYSIS)
+    mock.get(f"{URL}/api/settings/qualitaetsprofile/medienserver", json=SERVERS)
+    mock.get(f"{URL}/api/admin/analyse/laufend", json=PLAYING)
+    mock.get(f"{URL}/api/admin/stats", json=STATS)
+    mock.get(f"{URL}/api/calendar", json={"days": []})
+    mock.get(f"{URL}/api/v1/about", json=ABOUT)
 
 
 @pytest.fixture(autouse=True)
@@ -116,12 +151,12 @@ class TestButtons:
     async def test_an_errand_reaches_nexview(
         self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
     ) -> None:
-        """⚠️ Switched on first, the way a person would.
+        """⚠️ There from the start, but not on the dashboard.
 
-        These buttons are registered but disabled, so they are not among the
-        tiles a new installation greets you with. Pressing one without
-        enabling it would press an entity that does not exist, and the test
-        would pass for entirely the wrong reason.
+        These carry the configuration category, which keeps them off the
+        overview and puts them on the device card - where somebody looks for
+        controls. Disabling them on top of that made the only buttons this
+        integration has invisible, which is how it read as a viewer.
         """
         await setup_entry(hass, entry)
 
@@ -129,12 +164,8 @@ class TestButtons:
         entity_id = registry.async_get_entity_id(
             "button", DOMAIN, f"{entry.entry_id}_storage_sync"
         )
-        assert entity_id, "The button has to exist even while disabled."
-        assert hass.states.get(entity_id) is None, "Disabled means no state."
-
-        registry.async_update_entity(entity_id, disabled_by=None)
-        await hass.config_entries.async_reload(entry.entry_id)
-        await hass.async_block_till_done()
+        assert entity_id, "The button has to exist."
+        assert hass.states.get(entity_id) is not None, "And it has to be usable."
 
         with patch(
             "custom_components.nexview.api.NexviewClient.storage_sync", AsyncMock()
@@ -156,12 +187,7 @@ class TestButtons:
         would answer 403 to all of them. A row of controls that cannot work is
         worse than no row at all.
         """
-        aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_READONLY)
-        aioclient_mock.get(f"{URL}/api/v1/dashboard", json=TILE)
-        aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
-        aioclient_mock.get(f"{URL}/api/settings/instanzen/verbindung", json=INSTANCES)
-        aioclient_mock.get(f"{URL}/api/settings/instanzen/gesundheit", json=HEALTH)
-        aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
+        _nur_lesend(aioclient_mock)
 
         await setup_entry(hass, entry)
 
@@ -178,8 +204,10 @@ class TestActionsThatAnswer:
     async def test_listing_requests_returns_them(
         self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
     ) -> None:
-        await setup_entry(hass, entry)
+        nexview.clear_requests()
+        _volle_kulisse(nexview)
         nexview.get(f"{URL}/api/admin/requests", json=REQUESTS)
+        await setup_entry(hass, entry)
 
         answer = await hass.services.async_call(
             DOMAIN, SERVICE_LIST_REQUESTS, {}, blocking=True, return_response=True
@@ -199,8 +227,10 @@ class TestActionsThatAnswer:
         in whatever an automation does with them, so the client cuts them out
         before they ever reach Home Assistant.
         """
-        await setup_entry(hass, entry)
+        nexview.clear_requests()
+        _volle_kulisse(nexview)
         nexview.get(f"{URL}/api/admin/requests", json=REQUESTS)
+        await setup_entry(hass, entry)
 
         answer = await hass.services.async_call(
             DOMAIN, SERVICE_LIST_REQUESTS, {}, blocking=True, return_response=True
@@ -213,8 +243,10 @@ class TestActionsThatAnswer:
     async def test_active_downloads_are_the_running_ones(
         self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
     ) -> None:
-        await setup_entry(hass, entry)
+        nexview.clear_requests()
+        _volle_kulisse(nexview)
         nexview.get(f"{URL}/api/admin/requests", json=REQUESTS)
+        await setup_entry(hass, entry)
 
         answer = await hass.services.async_call(
             DOMAIN, SERVICE_ACTIVE_DOWNLOADS, {}, blocking=True, return_response=True
@@ -250,12 +282,7 @@ class TestActionsThatAnswer:
         so. Looking a title up changes nothing, and refusing that would be an
         invented restriction.
         """
-        aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_READONLY)
-        aioclient_mock.get(f"{URL}/api/v1/dashboard", json=TILE)
-        aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
-        aioclient_mock.get(f"{URL}/api/settings/instanzen/verbindung", json=INSTANCES)
-        aioclient_mock.get(f"{URL}/api/settings/instanzen/gesundheit", json=HEALTH)
-        aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
+        _nur_lesend(aioclient_mock)
         aioclient_mock.get(
             f"{URL}/api/v1/search/movie", json={"results": [{"title": "Some Film"}]}
         )

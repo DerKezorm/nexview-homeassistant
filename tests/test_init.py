@@ -26,10 +26,11 @@ from custom_components.nexview.const import (
 
 from .conftest import (
     ABOUT,
-    HEALTH,
+    ANALYSIS,
     IDENTITY_READONLY,
     IDENTITY_USER,
-    INSTANCES,
+    PLAYING,
+    SERVERS,
     TILE,
     URL,
     setup_entry,
@@ -41,8 +42,11 @@ def _readonly_nexview(mock: AiohttpClientMocker) -> None:
     mock.get(f"{URL}/api/v1/me", json=IDENTITY_READONLY)
     mock.get(f"{URL}/api/v1/dashboard", json=TILE)
     mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
-    mock.get(f"{URL}/api/settings/instanzen/verbindung", json=INSTANCES)
-    mock.get(f"{URL}/api/settings/instanzen/gesundheit", json=HEALTH)
+    mock.get(f"{URL}/api/admin/analyse", json=ANALYSIS)
+    mock.get(f"{URL}/api/settings/qualitaetsprofile/medienserver", json=SERVERS)
+    mock.get(f"{URL}/api/admin/analyse/laufend", json=PLAYING)
+    mock.get(f"{URL}/api/admin/stats", json={"users": []})
+    mock.get(f"{URL}/api/calendar", json={"days": []})
     mock.get(f"{URL}/api/v1/about", json=ABOUT)
 
 

@@ -22,13 +22,25 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import EntityCategory, UnitOfInformation
+from homeassistant.const import EntityCategory, UnitOfInformation, UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
-from .api import CAP_ADMINISTER, CAP_DECIDE, AccountUsage, Snapshot
+from .api import (
+    CAP_ADMINISTER,
+    CAP_DECIDE,
+    AccountUsage,
+    Instance,
+    MediaServer,
+    Snapshot,
+)
 from .coordinator import NexviewConfigEntry, NexviewCoordinator
-from .entity import NexviewAccountEntity, NexviewEntity, NexviewInstanceEntity
+from .entity import (
+    NexviewAccountEntity,
+    NexviewEntity,
+    NexviewInstanceEntity,
+    NexviewServerEntity,
+)
 
 #: ⚠️ **No limit needed.** Every entity here reads from one shared poll, so
 #: there is nothing to serialise - Home Assistant asks for this to be stated
@@ -43,8 +55,9 @@ class NexviewSensorDescription(SensorEntityDescription):
     #: What the key must be allowed to do for this sensor to make sense.
     requires: str
     #: ``None`` means "no figure right now" - the entity goes unavailable
-    #: rather than showing a zero that nobody measured.
-    value_fn: Callable[[Snapshot], int | None]
+    #: rather than showing a zero that nobody measured. Float rather than int
+    #: because one of these is a duration in hours.
+    value_fn: Callable[[Snapshot], float | None]
 
 
 def _pending(snapshot: Snapshot) -> int | None:
@@ -102,6 +115,19 @@ SENSORS: tuple[NexviewSensorDescription, ...] = (
         entity_registry_enabled_default=False,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda s: s.tile.findings_hint if s.tile else None,
+    ),
+    NexviewSensorDescription(
+        key="oldest_pending",
+        translation_key="oldest_pending",
+        requires=CAP_DECIDE,
+        device_class=SensorDeviceClass.DURATION,
+        native_unit_of_measurement=UnitOfTime.HOURS,
+        suggested_display_precision=1,
+        state_class=SensorStateClass.MEASUREMENT,
+        # ⚠️ ``None`` when nothing waits, and that is the point: a zero would
+        # read as "somebody just asked", which is the opposite of an empty
+        # queue. The entity goes unavailable instead.
+        value_fn=lambda s: s.oldest_pending_hours,
     ),
     NexviewSensorDescription(
         key="open_tickets",
@@ -184,6 +210,12 @@ ACCOUNT_SENSORS: tuple[NexviewAccountSensorDescription, ...] = (
         value_fn=lambda a: a.series.remaining,
     ),
     NexviewAccountSensorDescription(
+        key="open_requests",
+        translation_key="account_open_requests",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda a: a.pending,
+    ),
+    NexviewAccountSensorDescription(
         key="storage_used",
         translation_key="storage_used",
         device_class=SensorDeviceClass.DATA_SIZE,
@@ -202,6 +234,69 @@ ACCOUNT_SENSORS: tuple[NexviewAccountSensorDescription, ...] = (
         suggested_display_precision=1,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda a: a.storage.remaining,
+    ),
+)
+
+
+@dataclass(frozen=True, kw_only=True)
+class NexviewInstanceSensorDescription(SensorEntityDescription):
+    """One figure about one Radarr or Sonarr."""
+
+    value_fn: Callable[[Instance], int | None]
+
+
+INSTANCE_SENSORS: tuple[NexviewInstanceSensorDescription, ...] = (
+    NexviewInstanceSensorDescription(
+        key="queue",
+        translation_key="instance_queue",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda i: i.queue,
+    ),
+    NexviewInstanceSensorDescription(
+        key="queue_stuck",
+        translation_key="instance_queue_stuck",
+        state_class=SensorStateClass.MEASUREMENT,
+        # ⚠️ The interesting half. A long queue is a busy evening; a stuck one
+        # is something nobody will notice until somebody complains.
+        value_fn=lambda i: i.queue_stuck,
+    ),
+    NexviewInstanceSensorDescription(
+        key="gaps",
+        translation_key="instance_gaps",
+        entity_registry_enabled_default=False,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda i: i.gaps,
+    ),
+)
+
+
+@dataclass(frozen=True, kw_only=True)
+class NexviewServerSensorDescription(SensorEntityDescription):
+    """One figure about one media server."""
+
+    value_fn: Callable[[MediaServer], int | None]
+
+
+SERVER_SENSORS: tuple[NexviewServerSensorDescription, ...] = (
+    NexviewServerSensorDescription(
+        key="playing",
+        translation_key="server_playing",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda s: s.playing,
+    ),
+    NexviewServerSensorDescription(
+        key="transcoding",
+        translation_key="server_transcoding",
+        state_class=SensorStateClass.MEASUREMENT,
+        # What a slow evening looks like from the outside: the server is
+        # converting rather than sending the file as it lies.
+        value_fn=lambda s: s.transcoding,
+    ),
+    NexviewServerSensorDescription(
+        key="titles",
+        translation_key="server_titles",
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda s: s.titles,
     ),
 )
 
@@ -225,6 +320,7 @@ async def async_setup_entry(
     # list once at setup would mean a restart for every change.
     known_instances: set[str] = set()
     known_accounts: set[int] = set()
+    known_servers: set[str] = set()
 
     @callback
     def _add_new() -> None:
@@ -237,7 +333,18 @@ async def async_setup_entry(
         for key in current_instances - known_instances:
             neu.append(NexviewInstanceProblems(coordinator, key))
             neu.append(NexviewInstanceVersion(coordinator, key))
+            neu.extend(
+                NexviewInstanceSensor(coordinator, key, d) for d in INSTANCE_SENSORS
+            )
         known_instances.update(current_instances)
+
+        current_servers = set(coordinator.data.servers)
+        known_servers.intersection_update(current_servers)
+        for key in current_servers - known_servers:
+            neu.extend(
+                NexviewServerSensor(coordinator, key, d) for d in SERVER_SENSORS
+            )
+        known_servers.update(current_servers)
 
         current_accounts = set(coordinator.data.accounts)
         known_accounts.intersection_update(current_accounts)
@@ -264,7 +371,7 @@ class NexviewSensor(NexviewEntity, SensorEntity):
         self.entity_description = description
 
     @property
-    def native_value(self) -> int | None:
+    def native_value(self) -> float | None:
         return self.entity_description.value_fn(self.coordinator.data)
 
     @property
@@ -338,5 +445,58 @@ class NexviewAccountSensor(NexviewAccountEntity, SensorEntity):
         Where Nexview grants unlimited, ``remaining`` has no number, and the
         entity says so instead of showing a nought that would look like an
         account with nothing left.
+        """
+        return super().available and self.native_value is not None
+
+
+class NexviewInstanceSensor(NexviewInstanceEntity, SensorEntity):
+    """One figure about one Radarr or Sonarr."""
+
+    entity_description: NexviewInstanceSensorDescription
+
+    def __init__(
+        self,
+        coordinator: NexviewCoordinator,
+        instance_key: str,
+        description: NexviewInstanceSensorDescription,
+    ) -> None:
+        super().__init__(coordinator, instance_key, description.key)
+        self.entity_description = description
+
+    @property
+    def native_value(self) -> int | None:
+        return self.entity_description.value_fn(self.instance) if self.instance else None
+
+    @property
+    def available(self) -> bool:
+        """Not measured is not the same as zero."""
+        return super().available and self.native_value is not None
+
+
+class NexviewServerSensor(NexviewServerEntity, SensorEntity):
+    """One figure about one media server."""
+
+    entity_description: NexviewServerSensorDescription
+
+    def __init__(
+        self,
+        coordinator: NexviewCoordinator,
+        server_key: str,
+        description: NexviewServerSensorDescription,
+    ) -> None:
+        super().__init__(coordinator, server_key, description.key)
+        self.entity_description = description
+
+    @property
+    def native_value(self) -> int | None:
+        return self.entity_description.value_fn(self.server) if self.server else None
+
+    @property
+    def available(self) -> bool:
+        """⚠️ The library count may be missing while the streams are not.
+
+        Nexview only knows how many titles a server holds once its comparison
+        has run. Until then that one sensor has nothing to say, and the two
+        about playback still do.
         """
         return super().available and self.native_value is not None

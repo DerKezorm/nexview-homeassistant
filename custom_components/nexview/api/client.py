@@ -14,6 +14,7 @@ instead of one per integration.
 from __future__ import annotations
 
 import logging
+from datetime import UTC, datetime
 from json import loads as json_loads
 from typing import Any
 
@@ -27,7 +28,15 @@ from .exceptions import (
     NexviewNotFoundError,
     NexviewTooOldError,
 )
-from .models import AccountUsage, Identity, Instance, Release, Tile, Version
+from .models import (
+    AccountUsage,
+    Identity,
+    Instance,
+    MediaServer,
+    Release,
+    Tile,
+    Version,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -161,29 +170,128 @@ class NexviewClient:
             return []
         return list(answer or [])
 
-    async def instances(self) -> list[Instance]:
-        """Every Radarr and Sonarr behind Nexview, with version and problems.
+    async def analysis(self) -> dict[str, Any]:
+        """Nexview's own analysis of itself.
 
-        Two calls because Nexview keeps them apart: one knows whether an
-        instance answers and which version it runs, the other what it is
-        complaining about. Neither is promised, and a guard in Nexview says so
-        when either changes.
+        One call that knows the instances, the library, the disks and the
+        comparison against the media servers. Measured rather than live, which
+        is what makes it suitable for a poll.
         """
-        connections = await self._call("GET", "/api/settings/instanzen/verbindung")
-        try:
-            health = await self._call("GET", "/api/settings/instanzen/gesundheit")
-        except NexviewError:
-            # Problems are the optional half. Without them an instance still
-            # has a name and a state, and that is most of the value.
-            health = {}
+        return dict(await self._call("GET", "/api/admin/analyse") or {})
 
-        by_key = {
-            str(h.get("kennung")): h for h in (health or {}).get("instanzen") or ()
-        }
+    async def instances(self) -> list[Instance]:
+        """Every Radarr and Sonarr behind Nexview.
+
+        ⚠️ **From the analysis, in one call.** The connection and health
+        endpoints each know half of this; the analysis knows all of it and
+        adds the queue and whether Radarr and Sonarr call back at all.
+        """
+        antwort = await self.analysis()
         return [
-            Instance.from_detail(c, by_key.get(str(c.get("kennung"))))
-            for c in (connections or {}).get("instanzen") or ()
+            Instance.from_analysis(i) for i in antwort.get("instanzen") or ()
         ]
+
+    async def servers(self, analysis: dict[str, Any] | None = None) -> list[MediaServer]:
+        """Plex, Jellyfin and Emby, with what is on them and what is playing.
+
+        Three sources, and none of them alone is enough: the list of servers,
+        the per-provider count out of the analysis, and the current streams.
+        The last two are optional - a server with neither is still a server.
+        """
+        roh = await self._call("GET", "/api/settings/qualitaetsprofile/medienserver")
+        server = (roh or {}).get("server") or []
+
+        if analysis is None:
+            try:
+                analysis = await self.analysis()
+            except NexviewError:
+                analysis = {}
+        je_anbieter = (analysis.get("abgleich") or {}).get("je_anbieter") or {}
+
+        try:
+            laufend = await self._call("GET", "/api/admin/analyse/laufend") or {}
+        except NexviewError:
+            laufend = {}
+        streams = laufend.get("wiedergaben") or []
+
+        out: list[MediaServer] = []
+        for s in server:
+            anbieter = str(s.get("provider", ""))
+            meine = [w for w in streams if str(w.get("provider", "")) == anbieter]
+            out.append(
+                MediaServer(
+                    key=str(s.get("id") or anbieter),
+                    provider=anbieter,
+                    name=str(s.get("name") or anbieter.capitalize()),
+                    titles=je_anbieter.get(anbieter),
+                    playing=len(meine),
+                    # "direkt" means it is being sent as it lies; anything else
+                    # is the server working, which is what a slow evening looks
+                    # like from the outside.
+                    transcoding=sum(
+                        1 for w in meine if str(w.get("umrechnung", "")) != "direkt"
+                    ),
+                    configured=bool(s.get("schluessel_da", True)),
+                )
+            )
+        return out
+
+    async def now_playing(self) -> list[dict[str, Any]]:
+        """What is running right now, in detail.
+
+        ⚠️ **An action, never an attribute.** This carries who is watching
+        what on which device. It is the right answer to a question somebody
+        asks in the moment, and the wrong thing to write into a database that
+        keeps everything for years.
+        """
+        laufend = await self._call("GET", "/api/admin/analyse/laufend") or {}
+        return [
+            {
+                "server": w.get("provider"),
+                "account": w.get("konto"),
+                "title": w.get("titel"),
+                "series": w.get("serie"),
+                "media_type": w.get("media_type"),
+                "progress": w.get("fortschritt"),
+                "device": w.get("geraet"),
+                "app": w.get("anwendung"),
+                "paused": w.get("pausiert"),
+                "transcoding": str(w.get("umrechnung", "")) != "direkt",
+            }
+            for w in laufend.get("wiedergaben") or []
+        ]
+
+    async def oldest_pending_hours(self) -> float | None:
+        """How long the oldest waiting request has been waiting.
+
+        ``None`` when nothing waits. A zero would read as "somebody just
+        asked", which is the opposite of an empty queue.
+        """
+        wartend = await self._call(
+            "GET", "/api/admin/requests", params={"status": "pending_approval"}
+        )
+        rows = (
+            wartend if isinstance(wartend, list) else (wartend or {}).get("items") or []
+        )
+        zeiten = [r.get("requested_at") for r in rows if r.get("requested_at")]
+        if not zeiten:
+            return None
+
+        jetzt = datetime.now(UTC)
+        aeltester = None
+        for z in zeiten:
+            try:
+                wann = datetime.fromisoformat(str(z))
+            except ValueError:
+                continue
+            if wann.tzinfo is None:
+                # Nexview writes naive UTC timestamps.
+                wann = wann.replace(tzinfo=UTC)
+            if aeltester is None or wann < aeltester:
+                aeltester = wann
+        if aeltester is None:
+            return None
+        return round((jetzt - aeltester).total_seconds() / 3600, 1)
 
     async def accounts(self) -> list[AccountUsage]:
         """What each account has used of its allowances.

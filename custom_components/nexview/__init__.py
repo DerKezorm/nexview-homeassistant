@@ -57,6 +57,7 @@ from .const import (
     SERVICE_DEFER,
     SERVICE_GET_QUOTA,
     SERVICE_LIST_REQUESTS,
+    SERVICE_NOW_PLAYING,
     SERVICE_REJECT,
     SERVICE_SEARCH,
 )
@@ -335,6 +336,11 @@ async def _async_register_services(hass: HomeAssistant) -> None:
                 antwort = {"requests": await client.requests(call.data.get(ATTR_STATUS))}
             elif what == SERVICE_ACTIVE_DOWNLOADS:
                 antwort = {"downloads": await client.active_downloads()}
+            elif what == SERVICE_NOW_PLAYING:
+                # ⚠️ Here and not as an attribute. This carries who is
+                # watching what on which device, and that is an answer to a
+                # question asked now, not something to keep for years.
+                antwort = {"playing": await client.now_playing()}
             else:
                 wanted = call.data.get(ATTR_ACCOUNT)
                 antwort = {
@@ -359,6 +365,7 @@ async def _async_register_services(hass: HomeAssistant) -> None:
         (SERVICE_LIST_REQUESTS, _LIST_SCHEMA),
         (SERVICE_ACTIVE_DOWNLOADS, _ENTRY_ONLY_SCHEMA),
         (SERVICE_GET_QUOTA, _QUOTA_SCHEMA),
+        (SERVICE_NOW_PLAYING, _ENTRY_ONLY_SCHEMA),
     ):
 
         async def answering(

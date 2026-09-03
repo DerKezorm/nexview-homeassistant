@@ -125,6 +125,7 @@ STATS: dict[str, Any] = {
             "quota_series_limit": 3,
             "storage_used_bytes": 500_000_000_000,
             "storage_limit_bytes": 1_000_000_000_000,
+            "pending": 2,
         },
     ]
 }
@@ -143,6 +144,77 @@ CALENDAR: dict[str, Any] = {
             ],
         }
     ]
+}
+
+#: Nexviews eigene Analyse. Sie ist inzwischen die Quelle für die Instanzen,
+#: weil sie Warteschlange und Rückkanal gleich mitbringt.
+ANALYSIS: dict[str, Any] = {
+    "instanzen": [
+        {
+            "kennung": "radarr-standard",
+            "name": "Radarr",
+            "erreichbar": True,
+            "version": "6.3.0",
+            "meldungen": [],
+            "warteschlange": 2,
+            "warteschlange_haengt": 0,
+            "luecken": 399,
+            "rueckkanal_aktiv": True,
+        },
+        {
+            "kennung": "sonarr-standard",
+            "name": "Sonarr",
+            "erreichbar": False,
+            "version": "4.1.0",
+            "meldungen": [{"typ": "warning", "text": "Indexer unavailable"}],
+            "warteschlange": 0,
+            "warteschlange_haengt": 0,
+            "luecken": 12,
+            "rueckkanal_aktiv": False,
+        },
+    ],
+    "abgleich": {"je_anbieter": {"plex": 3723, "jellyfin": 3731}},
+    "bibliothek": {"posten": 4303},
+}
+
+SERVERS: dict[str, Any] = {
+    "server": [
+        {"id": "1", "provider": "plex", "name": "Wohnzimmer", "schluessel_da": True},
+        {"id": "2", "provider": "jellyfin", "name": "Jellyfin", "schluessel_da": True},
+    ],
+    "instanzen": [],
+    "warnungen": [],
+}
+
+#: ⚠️ Erfundene Konten und Geräte. Was hier steht, landet in einem
+#: öffentlichen Repository.
+PLAYING: dict[str, Any] = {
+    "wiedergaben": [
+        {
+            "provider": "plex",
+            "konto": "Alex",
+            "titel": "Some Episode",
+            "serie": "Some Series",
+            "media_type": "tv",
+            "fortschritt": 0.42,
+            "geraet": "Living room",
+            "anwendung": "Plex",
+            "pausiert": False,
+            "umrechnung": "direkt",
+        },
+        {
+            "provider": "plex",
+            "konto": "Sam",
+            "titel": "Some Film",
+            "media_type": "movie",
+            "fortschritt": 0.1,
+            "geraet": "Tablet",
+            "anwendung": "Plex",
+            "pausiert": False,
+            "umrechnung": "1080p",
+        },
+    ],
+    "bild_umrechnungen": 1,
 }
 
 ABOUT: dict[str, Any] = {
@@ -180,8 +252,12 @@ def nexview(aioclient_mock: AiohttpClientMocker) -> AiohttpClientMocker:
         f"{URL}/api/v1/admin/requests/pending/count", json={"pending": 4}
     )
     aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
-    aioclient_mock.get(f"{URL}/api/settings/instanzen/verbindung", json=INSTANCES)
-    aioclient_mock.get(f"{URL}/api/settings/instanzen/gesundheit", json=HEALTH)
+    aioclient_mock.get(f"{URL}/api/admin/analyse", json=ANALYSIS)
+    aioclient_mock.get(
+        f"{URL}/api/settings/qualitaetsprofile/medienserver", json=SERVERS
+    )
+    aioclient_mock.get(f"{URL}/api/admin/analyse/laufend", json=PLAYING)
+    aioclient_mock.get(f"{URL}/api/admin/requests", json=[])
     aioclient_mock.get(f"{URL}/api/admin/stats", json=STATS)
     aioclient_mock.get(f"{URL}/api/calendar", json=CALENDAR)
     aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)

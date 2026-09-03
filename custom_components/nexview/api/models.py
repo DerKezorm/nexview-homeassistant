@@ -80,6 +80,20 @@ class Identity:
         return capability in self.capabilities
 
 
+def _ganzzahl(wert: Any) -> int | None:
+    """``None`` bleibt ``None``, alles Zählbare wird eine Zahl.
+
+    Der Unterschied trägt: keine Warteschlange gemessen ist etwas anderes als
+    eine leere.
+    """
+    if wert is None:
+        return None
+    try:
+        return int(wert)
+    except (TypeError, ValueError):
+        return None
+
+
 @dataclass(frozen=True, slots=True)
 class Instance:
     """One Radarr or Sonarr behind Nexview."""
@@ -96,6 +110,16 @@ class Instance:
     #: attribute - a list on a sensor is exactly what Home Assistant is
     #: retiring.
     problem_texts: tuple[str, ...] = ()
+    #: How much is queued at this instance right now, and how much of that is
+    #: stuck. Nexview measures both; the second is the interesting one.
+    queue: int | None = None
+    queue_stuck: int | None = None
+    #: Titles this instance wants and does not have. Nexview counts them per
+    #: instance, in titles for Radarr and in episodes for Sonarr.
+    gaps: int | None = None
+    #: Whether Radarr or Sonarr actually calls Nexview back. Without it
+    #: Nexview polls them, which is slower and which nobody notices.
+    webhook_active: bool | None = None
 
     @classmethod
     def from_json(cls, raw: dict[str, Any]) -> Instance:
@@ -108,20 +132,31 @@ class Instance:
         )
 
     @classmethod
-    def from_detail(
-        cls, connection: dict[str, Any], health: dict[str, Any] | None
-    ) -> Instance:
-        """From the two detailed endpoints, which know the version and the texts."""
-        problems = list((health or {}).get("probleme") or ())
+    def from_analysis(cls, raw: dict[str, Any]) -> Instance:
+        """From Nexview's own analysis, which knows everything in one call.
+
+        ⚠️ **One call instead of two.** The connection and health endpoints
+        each know half of this; the analysis knows all of it, plus the queue
+        and the state of the way back from Radarr and Sonarr. It is measured
+        rather than live - ``gemessen_am`` says when - which is exactly right
+        for something asked every thirty seconds.
+        """
+        meldungen = list(raw.get("meldungen") or ())
         return cls(
-            name=str(connection.get("name", "")),
-            reachable=bool(connection.get("erreichbar", False)),
-            problems=len(problems),
-            key=str(connection.get("kennung", "")),
-            version=connection.get("version") or None,
+            name=str(raw.get("name", "")),
+            reachable=bool(raw.get("erreichbar", False)),
+            problems=len(meldungen),
+            key=str(raw.get("kennung", "")),
+            version=raw.get("version") or None,
             problem_texts=tuple(
-                str(p.get("text", p)) if isinstance(p, dict) else str(p)
-                for p in problems
+                str(m.get("text", m)) if isinstance(m, dict) else str(m)
+                for m in meldungen
+            ),
+            queue=_ganzzahl(raw.get("warteschlange")),
+            queue_stuck=_ganzzahl(raw.get("warteschlange_haengt")),
+            gaps=_ganzzahl(raw.get("luecken")),
+            webhook_active=(
+                bool(raw["rueckkanal_aktiv"]) if "rueckkanal_aktiv" in raw else None
             ),
         )
 
@@ -210,6 +245,8 @@ class AccountUsage:
     movies: Quota
     series: Quota
     storage: Quota
+    #: Requests of this account still waiting for a decision.
+    pending: int = 0
 
     @classmethod
     def from_json(cls, raw: dict[str, Any]) -> AccountUsage:
@@ -237,7 +274,29 @@ class AccountUsage:
                 zahl(raw.get("storage_used_bytes")),
                 grenze(raw.get("storage_limit_bytes")),
             ),
+            pending=zahl(raw.get("pending")),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class MediaServer:
+    """One Plex, Jellyfin or Emby behind Nexview.
+
+    ⚠️ **No names of who is watching.** Nexview knows the account, the device
+    and the title of every stream; none of that is kept here. What a device
+    shows is how many are running, and the rest is available through an action
+    for whoever asks for it in the moment.
+    """
+
+    key: str
+    provider: str
+    name: str
+    #: Titles Nexview found on this server. ``None`` when the comparison has
+    #: not run - which is not the same as an empty library.
+    titles: int | None = None
+    playing: int = 0
+    transcoding: int = 0
+    configured: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -301,5 +360,10 @@ class Snapshot:
     instances: dict[str, Instance] = field(default_factory=dict)
     #: Keyed by account id, and only the accounts somebody asked for.
     accounts: dict[int, AccountUsage] = field(default_factory=dict)
+    #: Keyed by server id, as Nexview numbers them.
+    servers: dict[str, MediaServer] = field(default_factory=dict)
+    #: How long the oldest request has been waiting, in hours. ``None`` when
+    #: nothing is waiting - which a zero would read as "somebody just asked".
+    oldest_pending_hours: float | None = None
     version: Version | None = None
     extra: dict[str, Any] = field(default_factory=dict)

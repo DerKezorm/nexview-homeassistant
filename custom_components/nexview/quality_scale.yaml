@@ -61,10 +61,11 @@ rules:
   test-coverage:
     status: todo
     comment: >-
-      91% overall, and every path a person walks is covered: setting up, being
-      refused, re-authenticating, moving, picking accounts, deciding, pressing
-      an errand. What is left is mostly error branches in the client, which is
-      the last stretch to the 95% the rule asks for.
+      91% overall across 74 tests, and every path a person walks is covered:
+      setting up, being refused, re-authenticating, moving, picking accounts,
+      deciding, pressing an errand, asking what is playing. What is left is
+      mostly error branches in the client, which is the last stretch to the
+      95% the rule asks for.
 
   # --- Gold ---------------------------------------------------------------
   devices: done

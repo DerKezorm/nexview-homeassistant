@@ -99,7 +99,6 @@ class NexviewCheckUpdate(_NexviewButton):
         key="check_update",
         translation_key="check_update",
         entity_category=EntityCategory.CONFIG,
-        entity_registry_enabled_default=False,
     )
 
     def __init__(self, coordinator: NexviewCoordinator) -> None:
@@ -114,7 +113,6 @@ class NexviewStorageSync(_NexviewButton):
         key="storage_sync",
         translation_key="storage_sync",
         entity_category=EntityCategory.CONFIG,
-        entity_registry_enabled_default=False,
     )
 
     def __init__(self, coordinator: NexviewCoordinator) -> None:
@@ -131,7 +129,6 @@ class NexviewAcknowledge(_NexviewButton):
         key="acknowledge_findings",
         translation_key="acknowledge_findings",
         entity_category=EntityCategory.CONFIG,
-        entity_registry_enabled_default=False,
     )
 
     def __init__(self, coordinator: NexviewCoordinator) -> None:
@@ -148,7 +145,6 @@ class NexviewTestConnection(NexviewInstanceEntity, ButtonEntity):
         key="test_connection",
         translation_key="test_connection",
         entity_category=EntityCategory.CONFIG,
-        entity_registry_enabled_default=False,
     )
 
     def __init__(self, coordinator: NexviewCoordinator, instance_key: str) -> None:

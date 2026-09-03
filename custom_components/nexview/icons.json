@@ -6,6 +6,12 @@
         "state": {
           "off": "mdi:phone-off-outline"
         }
+      },
+      "instance_webhook": {
+        "default": "mdi:phone-in-talk",
+        "state": {
+          "off": "mdi:phone-hangup"
+        }
       }
     },
     "sensor": {
@@ -65,6 +71,30 @@
       },
       "instance_version": {
         "default": "mdi:tag-outline"
+      },
+      "oldest_pending": {
+        "default": "mdi:timer-sand"
+      },
+      "account_open_requests": {
+        "default": "mdi:inbox-outline"
+      },
+      "instance_queue": {
+        "default": "mdi:tray-full"
+      },
+      "instance_queue_stuck": {
+        "default": "mdi:tray-remove"
+      },
+      "instance_gaps": {
+        "default": "mdi:playlist-remove"
+      },
+      "server_playing": {
+        "default": "mdi:play-network"
+      },
+      "server_transcoding": {
+        "default": "mdi:cog-transfer"
+      },
+      "server_titles": {
+        "default": "mdi:filmstrip"
       }
     },
     "event": {
@@ -106,6 +136,7 @@
     "search": "mdi:magnify",
     "list_requests": "mdi:format-list-bulleted",
     "active_downloads": "mdi:progress-download",
-    "get_quota": "mdi:gauge"
+    "get_quota": "mdi:gauge",
+    "now_playing": "mdi:play-circle-outline"
   }
 }

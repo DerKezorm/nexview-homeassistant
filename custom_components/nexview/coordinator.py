@@ -26,6 +26,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from .api import (
     CAP_ADMINISTER,
     CAP_DECIDE,
+    Instance,
     NexviewAuthError,
     NexviewClient,
     NexviewError,
@@ -112,9 +113,26 @@ class NexviewCoordinator(DataUpdateCoordinator[Snapshot]):
         if identity.may(CAP_ADMINISTER):
             snapshot.tile = await self._optional("dashboard", self.client.tile())
 
-            instances = await self._optional("instances", self.client.instances())
-            if instances is not None:
-                snapshot.instances = {i.key: i for i in instances if i.key}
+            # ⚠️ **Once, then shared.** The analysis is the single most
+            # expensive thing Nexview computes for us, and both the instances
+            # and the media servers read from it. Asking twice would double
+            # that for nothing.
+            analysis = await self._optional("analysis", self.client.analysis())
+            if analysis is not None:
+                snapshot.instances = {
+                    i.key: i
+                    for i in (
+                        Instance.from_analysis(raw)
+                        for raw in analysis.get("instanzen") or ()
+                    )
+                    if i.key
+                }
+
+            servers = await self._optional(
+                "media servers", self.client.servers(analysis)
+            )
+            if servers is not None:
+                snapshot.servers = {s.key: s for s in servers if s.key}
 
             # Only the accounts somebody asked for. Fetching the rest and
             # throwing them away would still mean pulling names out of Nexview
@@ -131,6 +149,12 @@ class NexviewCoordinator(DataUpdateCoordinator[Snapshot]):
             snapshot.pending_count = await self._optional(
                 "pending count", self.client.pending_count()
             )
+            # Only worth asking when something is actually waiting - the call
+            # fetches a list, and an empty queue makes it pointless.
+            if snapshot.pending_count:
+                snapshot.oldest_pending_hours = await self._optional(
+                    "oldest request", self.client.oldest_pending_hours()
+                )
 
         snapshot.version = await self._optional("version", self.client.version())
         return snapshot

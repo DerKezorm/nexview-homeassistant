@@ -11,7 +11,7 @@ from __future__ import annotations
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .api import AccountUsage, Instance
+from .api import AccountUsage, Instance, MediaServer
 from .const import DOMAIN
 from .coordinator import NexviewCoordinator
 
@@ -114,6 +114,40 @@ class NexviewAccountEntity(NexviewEntity):
     @property
     def available(self) -> bool:
         return super().available and self.account is not None
+
+
+class NexviewServerEntity(NexviewEntity):
+    """Something about one Plex, Jellyfin or Emby.
+
+    ⚠️ **The media servers are not Nexview's, and the device says so.** They
+    belong to whoever runs them; Nexview only talks to them. Hanging them off
+    Nexview is still right - that is how they got here - but the manufacturer
+    line names the product, not nexapps.
+    """
+
+    def __init__(
+        self, coordinator: NexviewCoordinator, server_key: str, key: str
+    ) -> None:
+        super().__init__(coordinator, f"server{server_key}_{key}")
+        self.server_key = server_key
+        entry = coordinator.config_entry
+        server = coordinator.data.servers.get(server_key)
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"{entry.entry_id}_server{server_key}")},
+            entry_type=DeviceEntryType.SERVICE,
+            manufacturer=(server.provider.capitalize() if server else None),
+            model="Media server",
+            name=server.name if server else f"Server {server_key}",
+        )
+        _haenge_unter(self._attr_device_info, coordinator)
+
+    @property
+    def server(self) -> MediaServer | None:
+        return self.coordinator.data.servers.get(self.server_key)
+
+    @property
+    def available(self) -> bool:
+        return super().available and self.server is not None
 
 
 def _haenge_unter(info: DeviceInfo, coordinator: NexviewCoordinator) -> None:

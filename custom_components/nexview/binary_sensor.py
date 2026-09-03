@@ -42,10 +42,9 @@ async def async_setup_entry(
 
         current = set(coordinator.data.instances)
         known_instances.intersection_update(current)
-        neu.extend(
-            NexviewInstanceReachable(coordinator, key)
-            for key in current - known_instances
-        )
+        for key in current - known_instances:
+            neu.append(NexviewInstanceReachable(coordinator, key))
+            neu.append(NexviewInstanceWebhook(coordinator, key))
         known_instances.update(current)
 
         current_accounts = set(coordinator.data.accounts)
@@ -151,3 +150,35 @@ class NexviewQuotaExhausted(NexviewAccountEntity, BinarySensorEntity):
         if a is None:
             return False
         return bool(a.movies.exhausted or a.series.exhausted or a.storage.exhausted)
+
+
+class NexviewInstanceWebhook(NexviewInstanceEntity, BinarySensorEntity):
+    """Whether this Radarr or Sonarr calls Nexview back.
+
+    ⚠️ **Off means slower, not broken, and that is why it needs saying.**
+    Without the callback Nexview polls the instance instead, so everything
+    still works and downloads simply show up late. Nobody notices that on
+    their own.
+    """
+
+    entity_description = BinarySensorEntityDescription(
+        key="webhook_active",
+        translation_key="instance_webhook",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    )
+
+    def __init__(self, coordinator: NexviewCoordinator, instance_key: str) -> None:
+        super().__init__(coordinator, instance_key, "webhook_active")
+
+    @property
+    def is_on(self) -> bool:
+        return bool(self.instance and self.instance.webhook_active)
+
+    @property
+    def available(self) -> bool:
+        """Unknown is not off - older Nexview versions do not report this."""
+        return (
+            super().available
+            and self.instance is not None
+            and self.instance.webhook_active is not None
+        )
