@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <g fill="none" stroke="#1A4C87" stroke-width="26" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Dach und Wände als ein Zug, wie im Entwurf offen gezeichnet -->
+    <path d="M 96 246 L 256 96 L 416 246"/>
+    <path d="M 136 214 L 136 414 L 376 414 L 376 214"/>
+    <!-- der Firstpfosten rechts, der im Entwurf über das Dach hinausragt -->
+    <path d="M 376 178 L 376 246"/>
+    <!-- Augenlider -->
+    <path d="M 156 316 Q 256 226 356 316 Q 256 406 156 316 Z"/>
+    <!-- Iris -->
+    <circle cx="256" cy="316" r="54"/>
+  </g>
+  <!-- Play, gefüllt -->
+  <path d="M 238 288 L 292 316 L 238 344 Z" fill="#1A4C87"/>
+  <!-- der kleine Punkt oben rechts am Dreieck -->
+  <circle cx="288" cy="290" r="13" fill="#1A4C87"/>
+</svg>

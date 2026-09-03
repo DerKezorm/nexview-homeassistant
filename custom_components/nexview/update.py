@@ -19,6 +19,11 @@ from .api import NexviewError
 from .coordinator import NexviewConfigEntry, NexviewCoordinator
 from .entity import NexviewEntity
 
+#: ⚠️ **No limit needed.** Every entity here reads from one shared poll, so
+#: there is nothing to serialise - Home Assistant asks for this to be stated
+#: rather than assumed.
+PARALLEL_UPDATES = 0
+
 _LOGGER = logging.getLogger(__name__)
 
 

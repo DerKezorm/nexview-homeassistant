@@ -15,6 +15,8 @@ feature was removed again six weeks later.
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable
+from typing import TypeVar
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -34,6 +36,9 @@ from .const import CONF_ACCOUNTS, DOMAIN, POLL_IDLE, POLL_PUSHED
 _LOGGER = logging.getLogger(__name__)
 
 type NexviewConfigEntry = ConfigEntry[NexviewCoordinator]
+
+#: What ``_optional`` hands back when the call worked.
+_T = TypeVar("_T")
 
 
 class NexviewCoordinator(DataUpdateCoordinator[Snapshot]):
@@ -56,6 +61,11 @@ class NexviewCoordinator(DataUpdateCoordinator[Snapshot]):
         )
         self.client = client
         self._pushing = False
+        #: Which optional calls are currently failing. Kept so that a lasting
+        #: outage is reported once rather than every thirty seconds - and so
+        #: that its recovery is reported too, which is the half that usually
+        #: gets forgotten.
+        self._failing: set[str] = set()
 
     @property
     def pushing(self) -> bool:
@@ -127,19 +137,31 @@ class NexviewCoordinator(DataUpdateCoordinator[Snapshot]):
         """Which accounts the operator picked in the options."""
         return {int(i) for i in self.config_entry.options.get(CONF_ACCOUNTS, [])}
 
-    async def _optional(self, what: str, awaitable):
+    async def _optional(self, what: str, awaitable: Awaitable[_T]) -> _T | None:
         """Run a call whose failure must not take the rest of the poll down.
 
         Returns ``None`` instead of raising. The entities that depend on it go
         unavailable by themselves, and everything else keeps its value.
         """
         try:
-            return await awaitable
+            ergebnis = await awaitable
         except NexviewAuthError:
             # Rights shrank between the identity call and this one. Not worth a
             # re-auth flow: the next cycle reads the new capabilities anyway.
             _LOGGER.debug("Nexview no longer allows reading the %s", what)
+            self._failing.discard(what)
             return None
         except NexviewError as err:
-            _LOGGER.debug("Could not read the %s: %s", what, err)
+            # ⚠️ Once, not every thirty seconds. A log that repeats the same
+            # line all night buries whatever else went wrong that night.
+            if what not in self._failing:
+                self._failing.add(what)
+                _LOGGER.warning("Nexview stopped answering for the %s: %s", what, err)
+            else:
+                _LOGGER.debug("Still no %s from Nexview: %s", what, err)
             return None
+
+        if what in self._failing:
+            self._failing.discard(what)
+            _LOGGER.info("Nexview is answering for the %s again", what)
+        return ergebnis

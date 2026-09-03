@@ -31,6 +31,11 @@ from .coordinator import NexviewConfigEntry, NexviewCoordinator
 from .entity import NexviewEntity
 from .webhook import signal_event
 
+#: ⚠️ **No limit needed.** Every entity here reads from one shared poll, so
+#: there is nothing to serialise - Home Assistant asks for this to be stated
+#: rather than assumed.
+PARALLEL_UPDATES = 0
+
 DESCRIPTIONS: tuple[EventEntityDescription, ...] = (
     EventEntityDescription(
         key=EVENT_REQUESTS,

@@ -157,9 +157,9 @@ class NexviewClient:
         if isinstance(answer, dict):
             for key in ("items", "requests", "anfragen"):
                 if isinstance(answer.get(key), list):
-                    return answer[key]
+                    return list(answer[key])
             return []
-        return answer or []
+        return list(answer or [])
 
     async def instances(self) -> list[Instance]:
         """Every Radarr and Sonarr behind Nexview, with version and problems.
@@ -220,8 +220,9 @@ class NexviewClient:
             "GET", f"/api/v1/search/{media_type}", params={"query": query}
         )
         if isinstance(answer, dict):
-            return answer.get("results") or answer.get("items") or []
-        return answer or []
+            treffer = answer.get("results") or answer.get("items") or []
+            return list(treffer)
+        return list(answer or [])
 
     async def requests(self, status: str | None = None) -> list[dict[str, Any]]:
         """Requests, optionally filtered by status.
@@ -276,7 +277,8 @@ class NexviewClient:
         saved" - the endpoint also serves the settings screen, where somebody
         tests credentials before storing them.
         """
-        return await self._call("POST", f"/api/settings/test/{service}", json={}) or {}
+        antwort = await self._call("POST", f"/api/settings/test/{service}", json={})
+        return dict(antwort or {})
 
     async def storage_sync(self) -> None:
         await self._call("POST", "/api/storage/abgleich")
@@ -338,11 +340,12 @@ class NexviewClient:
             )
 
     async def webhook_save(self, name: str, url: str) -> dict[str, Any]:
-        return await self._call(
+        antwort = await self._call(
             "POST",
             "/api/settings/channels/webhook/targets",
             json={"name": name, "url": url, "token": "", "language": "en"},
         )
+        return dict(antwort or {})
 
     async def webhook_events(self, target_id: int, events: dict[str, str]) -> None:
         await self._call(

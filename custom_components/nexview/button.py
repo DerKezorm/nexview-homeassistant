@@ -12,7 +12,8 @@ not for the twelve tiles a new integration greets you with.
 
 from __future__ import annotations
 
-from typing import Final
+from collections.abc import Coroutine
+from typing import Any, Final
 
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.const import EntityCategory
@@ -24,6 +25,11 @@ from .api import CAP_CONFIGURE, NexviewError
 from .const import DOMAIN
 from .coordinator import NexviewConfigEntry, NexviewCoordinator
 from .entity import NexviewEntity, NexviewInstanceEntity
+
+#: ⚠️ **No limit needed.** Every entity here reads from one shared poll, so
+#: there is nothing to serialise - Home Assistant asks for this to be stated
+#: rather than assumed.
+PARALLEL_UPDATES = 0
 
 #: Nexview names its instances ``radarr-standard`` and its test endpoints
 #: ``radarr``. Spelled out rather than derived by string surgery: there are
@@ -76,7 +82,7 @@ async def async_setup_entry(
 class _NexviewButton(NexviewEntity, ButtonEntity):
     """Shared plumbing: run the errand, then refresh what it changed."""
 
-    async def _run(self, coro) -> None:
+    async def _run(self, coro: Coroutine[Any, Any, None]) -> None:
         try:
             await coro
         except NexviewError as err:

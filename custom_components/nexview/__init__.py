@@ -8,6 +8,7 @@ then create entities - as many as the key is actually allowed to fill.
 from __future__ import annotations
 
 import logging
+from typing import Any, cast
 
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
@@ -26,10 +27,12 @@ from homeassistant.exceptions import (
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import ConfigType
 
 from .api import (
     CAP_DECIDE,
+    AccountUsage,
     NexviewAuthError,
     NexviewClient,
     NexviewConnectionError,
@@ -133,6 +136,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: NexviewConfigEntry) -> b
 
 async def async_unload_entry(hass: HomeAssistant, entry: NexviewConfigEntry) -> bool:
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: NexviewConfigEntry, device: DeviceEntry
+) -> bool:
+    """May this device be deleted by hand?
+
+    ⚠️ **Only what Nexview no longer has.** An instance or an account that
+    disappeared for a moment - somebody is editing settings over there - comes
+    back with its history intact, so nothing is removed automatically. But a
+    Sonarr that was taken out for good, or an account that was deleted, would
+    otherwise sit in the list forever with no way to get rid of it. This is
+    that way, and it refuses while the thing still exists.
+
+    Nexview itself is never removable: deleting the entry is how that is done.
+    """
+    data = entry.runtime_data.data
+    for domain, identifier in device.identifiers:
+        if domain != DOMAIN:
+            continue
+        if identifier == entry.entry_id:
+            return False
+        rest = identifier.removeprefix(f"{entry.entry_id}_")
+        if rest.startswith("account"):
+            try:
+                user_id = int(rest.removeprefix("account"))
+            except ValueError:
+                return True
+            return user_id not in data.accounts
+        return rest not in data.instances
+    return True
 
 
 def _async_report_push(
@@ -248,7 +282,7 @@ async def _async_register_services(hass: HomeAssistant) -> None:
     # asked. An entity would have to hold the whole list all day for the one
     # minute a year somebody looks at it.
 
-    def _quota_json(account) -> dict[str, object]:
+    def _quota_json(account: AccountUsage) -> dict[str, Any]:
         return {
             "account_id": account.user_id,
             "name": account.name,
@@ -273,25 +307,29 @@ async def _async_register_services(hass: HomeAssistant) -> None:
         entry = await _entry_for(call, needs_decide=False)
         client = entry.runtime_data.client
         try:
+            antwort: dict[str, Any]
             if what == SERVICE_SEARCH:
-                return {
+                antwort = {
                     "results": await client.search(
                         call.data[ATTR_MEDIA_TYPE], call.data[ATTR_QUERY]
                     )
                 }
-            if what == SERVICE_LIST_REQUESTS:
-                return {"requests": await client.requests(call.data.get(ATTR_STATUS))}
-            if what == SERVICE_ACTIVE_DOWNLOADS:
-                return {"downloads": await client.active_downloads()}
-
-            wanted = call.data.get(ATTR_ACCOUNT)
-            return {
-                "accounts": [
-                    _quota_json(a)
-                    for a in await client.accounts()
-                    if wanted is None or a.user_id == wanted
-                ]
-            }
+            elif what == SERVICE_LIST_REQUESTS:
+                antwort = {"requests": await client.requests(call.data.get(ATTR_STATUS))}
+            elif what == SERVICE_ACTIVE_DOWNLOADS:
+                antwort = {"downloads": await client.active_downloads()}
+            else:
+                wanted = call.data.get(ATTR_ACCOUNT)
+                antwort = {
+                    "accounts": [
+                        _quota_json(a)
+                        for a in await client.accounts()
+                        if wanted is None or a.user_id == wanted
+                    ]
+                }
+            # Everything in here came out of Nexview as JSON and goes back out
+            # as JSON; the type checker cannot see that through dict[str, Any].
+            return cast(ServiceResponse, antwort)
         except NexviewAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
         except NexviewConnectionError as err:

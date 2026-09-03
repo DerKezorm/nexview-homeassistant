@@ -144,6 +144,64 @@ class NexviewConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={"name": entry.title},
         )
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change the address or the key without starting over.
+
+        ⚠️ **The account has to stay the same.** The address may well change -
+        Nexview moves to another port, gets a name instead of an IP, ends up
+        behind a proxy - and that must not cost anybody their history. Pointing
+        an existing entry at a different account would be something else
+        entirely: every entity would keep its name and its recorded past while
+        quietly meaning somebody else.
+        """
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            url = _tidy_url(user_input[CONF_URL])
+            key = user_input[CONF_KEY].strip()
+            identity, error = await self._check(url, key)
+
+            if error:
+                errors["base"] = error
+            elif identity is not None:
+                previous = (entry.unique_id or "").rsplit("::", 1)[-1]
+                if previous and previous != str(identity.account.id):
+                    errors["base"] = "wrong_account"
+                else:
+                    # ⚠️ The unique id carries the address, so moving Nexview
+                    # moves it too. Deliberately **not** the usual mismatch
+                    # guard: that one exists to stop an entry from turning
+                    # into a different thing, and here the whole point is that
+                    # the same thing now answers somewhere else. What must not
+                    # happen is landing on top of another entry, so that is
+                    # what gets checked.
+                    neue_kennung = f"{url}::{identity.account.id}"
+                    fremd = [
+                        e
+                        for e in self._async_current_entries()
+                        if e.entry_id != entry.entry_id
+                        and e.unique_id == neue_kennung
+                    ]
+                    if fremd:
+                        return self.async_abort(reason="already_configured")
+                    return self.async_update_reload_and_abort(
+                        entry,
+                        unique_id=neue_kennung,
+                        data_updates={CONF_URL: url, CONF_KEY: key},
+                    )
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(
+                STEP_USER, {CONF_URL: entry.data[CONF_URL], CONF_KEY: ""}
+            ),
+            errors=errors,
+            description_placeholders={"name": entry.title},
+        )
+
     async def _check(self, url: str, key: str) -> tuple[Identity | None, str | None]:
         """Try the connection. Returns either what we found or why we did not."""
         if not key.startswith(KEY_PREFIX):

@@ -22,6 +22,18 @@
         "data_description": {
           "api_key": "Der neue Schlüssel muss zum selben Nexview-Konto gehören wie vorher."
         }
+      },
+      "reconfigure": {
+        "title": "Ändern, wie Nexview erreicht wird",
+        "description": "{name} auf eine andere Adresse zeigen lassen oder einen neuen Schlüssel hinterlegen. Der Schlüssel muss zum selben Nexview-Konto gehören wie bisher - ein anderes Konto gehört in einen eigenen Eintrag.",
+        "data": {
+          "url": "Adresse",
+          "api_key": "Zugriffs-Schlüssel"
+        },
+        "data_description": {
+          "url": "Wo Nexview jetzt antwortet.",
+          "api_key": "Den Schlüssel erneut einfügen, oder einen neuen. Angezeigt wird er hier nicht."
+        }
       }
     },
     "error": {
@@ -34,7 +46,8 @@
     },
     "abort": {
       "already_configured": "Dieses Nexview-Konto ist bereits verbunden.",
-      "reauth_successful": "Nexview hat den neuen Schlüssel angenommen."
+      "reauth_successful": "Nexview hat den neuen Schlüssel angenommen.",
+      "reconfigure_successful": "Nexview ist unter den neuen Angaben erreichbar."
     }
   },
   "entity": {

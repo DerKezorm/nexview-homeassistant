@@ -6,14 +6,36 @@ way to approve or reject a request without opening Nexview at all.
 
 ## What you get
 
-**Sensors** for waiting requests, requests in progress, failures over the last
-seven days, open findings by severity, open tickets, and how full the library
-is. All of them keep history, so a graph over a month costs nothing extra.
+**The house at a glance.** Waiting requests, requests in progress, failures over
+the last seven days, findings by severity, open tickets, and how full the
+library is. All of them keep history, so a graph over a month costs nothing.
 
-**Events** in three groups: requests, storage and operations. Each one is an
-event entity, so it shows up in the automation editor without a template.
+**Every Radarr and Sonarr as its own device**, hanging off Nexview: whether it
+answers, what it is complaining about, which version it runs, and a button to
+make Nexview talk to it right now.
 
-**Actions** to approve, reject, defer or cancel a request.
+**Allowances per account**, for the accounts you pick. Nexview applies a number
+of titles and an amount of storage at the same time, either one being full
+stopping a request, so both are shown and one sensor says plainly when
+requesting is over for now. Nobody gets entities without being picked: an
+installation with thirty accounts should not be handed two hundred entities by
+an integration it just installed.
+
+**A calendar** of what is coming out, sitting beside the bin collection rather
+than in an app.
+
+**Nexview itself in the update list**, so it does not sit at an old version for
+months because nobody happened to look. It shows and does not install - that
+part belongs to whatever runs your containers.
+
+**Events** in three groups: requests, storage and operations. Each is an event
+entity, so it shows up in the automation editor without a template, and one
+subject does not wake automations that care about another.
+
+**Actions that do**: approve, reject, defer, cancel.
+**Actions that answer**: search, list requests, active downloads with progress,
+allowances. Lists live here rather than in entity attributes, which is where
+Home Assistant is moving them anyway.
 
 **Only what your key may do.** Nexview hands out named access keys whose rights
 follow the account they belong to, and a key can additionally be marked read
@@ -82,6 +104,40 @@ Until this is in the HACS default list, add it as a custom repository:
 1. HACS, three dots, **Custom repositories**
 2. Repository `DerKezorm/nexview-homeassistant`, category **Integration**
 3. Install, restart Home Assistant, then add the integration
+
+## When something does not work
+
+**No entities beyond "Reachable".** The key decides what exists. Open the
+integration's diagnostics (three dots on the entry, *Download diagnostics*) and
+look at `key.may`: `verwalten` is what the house figures need, `entscheiden` is
+what the approve buttons need. If `read_only` is true, the key was created with
+that switch and can only ever show numbers.
+
+**Events arrive late or not at all.** Home Assistant will have written a repair
+notice saying so. Nexview has to be able to reach Home Assistant, not the other
+way round, and the notice names the exact address it should call. A key without
+`einrichten` cannot register that address by itself, so somebody has to add it
+in Nexview under Settings, Notifications, Webhook.
+
+**"This Nexview is too old".** The integration needs `GET /api/v1/me`, which
+arrived in Nexview 0.30.0. Nothing else will make it work.
+
+**A figure says "unavailable" rather than a number.** For an allowance, that is
+the correct answer: the account has no limit, so there is nothing left over to
+count. Elsewhere it means Nexview did not answer that particular call - the log
+says which one, once, when it starts and when it stops.
+
+## Removing it
+
+Delete the entry in Home Assistant. That takes the entities and devices with
+it, and unregisters the webhook.
+
+**Then tidy up in Nexview**, because two things stay behind there:
+
+1. Under Settings, Notifications, Webhook, delete the target named
+   `Home Assistant (…)`. Otherwise Nexview keeps calling an address that no
+   longer listens and fills its outbox with failures.
+2. In your profile under Access keys, revoke the key you created for it.
 
 ## Known limitations
 

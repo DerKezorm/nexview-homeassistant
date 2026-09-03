@@ -19,6 +19,11 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .coordinator import NexviewConfigEntry, NexviewCoordinator
 from .entity import NexviewAccountEntity, NexviewEntity, NexviewInstanceEntity
 
+#: ⚠️ **No limit needed.** Every entity here reads from one shared poll, so
+#: there is nothing to serialise - Home Assistant asks for this to be stated
+#: rather than assumed.
+PARALLEL_UPDATES = 0
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -145,4 +150,4 @@ class NexviewQuotaExhausted(NexviewAccountEntity, BinarySensorEntity):
         a = self.account
         if a is None:
             return False
-        return a.movies.exhausted or a.series.exhausted or a.storage.exhausted
+        return bool(a.movies.exhausted or a.series.exhausted or a.storage.exhausted)

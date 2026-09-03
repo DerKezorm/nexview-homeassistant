@@ -1,0 +1,110 @@
+# Where this integration stands against Home Assistant's quality scale.
+#
+# ⚠️ A custom integration always carries the mark "custom" no matter what is
+# in this file. It is kept anyway, for two reasons: it is the checklist the
+# core asks for if this is ever submitted, and it is the honest answer to
+# "what is still missing" - which is otherwise a matter of memory.
+#
+# status: done | todo | exempt. Every exempt carries a reason.
+
+rules:
+  # --- Bronze -------------------------------------------------------------
+  action-setup: done
+  appropriate-polling: done
+  brands:
+    status: todo
+    comment: >-
+      brand/ carries an icon at 256 and 512 pixels plus the source svg, so HACS
+      and Home Assistant both have one. What is missing is the submission to
+      home-assistant/brands, which the core requires instead of a local file.
+  common-modules: done
+  config-flow: done
+  config-flow-test-coverage: done
+  dependency-transparency:
+    status: todo
+    comment: >-
+      The client lives in api/ and imports nothing from Home Assistant, which a
+      test enforces. It is shipped with the integration rather than published,
+      so it is not yet a transparent dependency in the sense of the rule.
+      Publishing it as python-nexview is the step this rule is waiting for.
+  docs-actions: done
+  docs-high-level-description: done
+  docs-installation-instructions: done
+  docs-removal-instructions: done
+  docs-triggers:
+    status: exempt
+    comment: >-
+      No trigger platform. Events are event entities, which the automation
+      editor offers by itself.
+  docs-conditions:
+    status: exempt
+    comment: No condition platform.
+  entity-event-setup: done
+  entity-unique-id: done
+  has-entity-name: done
+  runtime-data: done
+  test-before-configure: done
+  test-before-setup: done
+  unique-config-entry: done
+
+  # --- Silver -------------------------------------------------------------
+  action-exceptions: done
+  config-entry-unloading: done
+  docs-configuration-parameters: done
+  docs-installation-parameters: done
+  entity-unavailable: done
+  integration-owner: done
+  log-when-unavailable: done
+  parallel-updates: done
+  reauthentication-flow: done
+  test-coverage:
+    status: todo
+    comment: Good coverage of the paths that matter, not yet measured against 95%.
+
+  # --- Gold ---------------------------------------------------------------
+  devices: done
+  diagnostics: done
+  discovery:
+    status: exempt
+    comment: >-
+      Nexview announces itself on no network protocol. It is a web application
+      behind whatever address the operator chose.
+  discovery-update-info:
+    status: exempt
+    comment: Same reason - nothing to discover, nothing to update from discovery.
+  docs-data-update: done
+  docs-examples: done
+  docs-known-limitations: done
+  docs-supported-devices:
+    status: exempt
+    comment: One service, no devices of its own.
+  docs-supported-functions: done
+  docs-troubleshooting: done
+  docs-use-cases: done
+  dynamic-devices: done
+  entity-category: done
+  entity-device-class: done
+  entity-disabled-by-default: done
+  entity-translations: done
+  exception-translations: done
+  icon-translations: done
+  reconfiguration-flow: done
+  repair-issues: done
+  stale-devices:
+    status: done
+    comment: >-
+      Nothing is removed automatically: an instance or account that disappears
+      for a moment - somebody is editing settings - goes unavailable and keeps
+      its history. Removing one for good is a deliberate act, and
+      async_remove_config_entry_device allows it exactly when Nexview no longer
+      has the thing.
+
+  # --- Platinum -----------------------------------------------------------
+  async-dependency: done
+  inject-websession: done
+  strict-typing:
+    status: done
+    comment: >-
+      mypy --strict is clean and runs in CI. One deliberate ignore in
+      entity.py: via_device is a valid DeviceInfo key that the checker does not
+      know about, and dropping it would break the device tree.

@@ -22,6 +22,18 @@
         "data_description": {
           "api_key": "The new key has to belong to the same Nexview account as before."
         }
+      },
+      "reconfigure": {
+        "title": "Change how Nexview is reached",
+        "description": "Point {name} at a different address, or store a new key. The key has to belong to the same Nexview account as before - a different account belongs in an entry of its own.",
+        "data": {
+          "url": "Address",
+          "api_key": "Access key"
+        },
+        "data_description": {
+          "url": "Where Nexview answers now.",
+          "api_key": "Paste the key again, or a new one. It is not shown here."
+        }
       }
     },
     "error": {
@@ -34,7 +46,8 @@
     },
     "abort": {
       "already_configured": "This Nexview account is already connected.",
-      "reauth_successful": "Nexview accepted the new key."
+      "reauth_successful": "Nexview accepted the new key.",
+      "reconfigure_successful": "Nexview is reachable under the new settings."
     }
   },
   "entity": {

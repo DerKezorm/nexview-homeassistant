@@ -2,3 +2,4 @@ homeassistant==2026.9.0
 pytest-homeassistant-custom-component
 pytest-cov
 ruff
+mypy

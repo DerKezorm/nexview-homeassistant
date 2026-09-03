@@ -11,6 +11,7 @@ from __future__ import annotations
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from .api import AccountUsage, Instance
 from .const import DOMAIN
 from .coordinator import NexviewCoordinator
 
@@ -62,11 +63,11 @@ class NexviewInstanceEntity(NexviewEntity):
             model=instance_key.split("-")[0].capitalize() if instance_key else None,
             name=instance.name if instance else instance_key,
             sw_version=instance.version if instance else None,
-            via_device=(DOMAIN, entry.entry_id),
+            via_device=(DOMAIN, entry.entry_id),  # type: ignore[typeddict-unknown-key]
         )
 
     @property
-    def instance(self):
+    def instance(self) -> Instance | None:
         """The current state of this instance, or ``None`` if it is gone."""
         return self.coordinator.data.instances.get(self.instance_key)
 
@@ -103,11 +104,11 @@ class NexviewAccountEntity(NexviewEntity):
             manufacturer="nexapps",
             model="Account",
             name=account.name if account else f"Account {user_id}",
-            via_device=(DOMAIN, entry.entry_id),
+            via_device=(DOMAIN, entry.entry_id),  # type: ignore[typeddict-unknown-key]
         )
 
     @property
-    def account(self):
+    def account(self) -> AccountUsage | None:
         return self.coordinator.data.accounts.get(self.user_id)
 
     @property
