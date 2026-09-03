@@ -25,6 +25,7 @@ from homeassistant.exceptions import (
     ServiceValidationError,
 )
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -129,6 +130,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: NexviewConfigEntry) -> b
     pushing = await hook.async_ensure_target()
     coordinator.set_pushing(pushing)
     _async_report_push(hass, entry, pushing=pushing, url=hook.url)
+
+    # ⚠️ **Nexview itself is registered here, not as a side effect.** The
+    # instances and accounts hang off it by device id, and an id only exists
+    # once the device does. Letting the first entity create it would make the
+    # tree depend on which platform happened to load first.
+    devices = dr.async_get(hass)
+    main = devices.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        entry_type=dr.DeviceEntryType.SERVICE,
+        manufacturer="nexapps",
+        name=entry.title,
+        configuration_url=client.url,
+        sw_version=coordinator.data.identity.version,
+    )
+    coordinator.main_device_id = main.id
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

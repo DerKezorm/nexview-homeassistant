@@ -61,6 +61,9 @@ class NexviewCoordinator(DataUpdateCoordinator[Snapshot]):
         )
         self.client = client
         self._pushing = False
+        #: Set once the main device exists, so instances and accounts can hang
+        #: off it. Empty only in the moment between the first fetch and that.
+        self.main_device_id: str | None = None
         #: Which optional calls are currently failing. Kept so that a lasting
         #: outage is reported once rather than every thirty seconds - and so
         #: that its recovery is reported too, which is the half that usually

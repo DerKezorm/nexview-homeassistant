@@ -63,8 +63,8 @@ class NexviewInstanceEntity(NexviewEntity):
             model=instance_key.split("-")[0].capitalize() if instance_key else None,
             name=instance.name if instance else instance_key,
             sw_version=instance.version if instance else None,
-            via_device=(DOMAIN, entry.entry_id),  # type: ignore[typeddict-unknown-key]
         )
+        _haenge_unter(self._attr_device_info, coordinator)
 
     @property
     def instance(self) -> Instance | None:
@@ -104,8 +104,8 @@ class NexviewAccountEntity(NexviewEntity):
             manufacturer="nexapps",
             model="Account",
             name=account.name if account else f"Account {user_id}",
-            via_device=(DOMAIN, entry.entry_id),  # type: ignore[typeddict-unknown-key]
         )
+        _haenge_unter(self._attr_device_info, coordinator)
 
     @property
     def account(self) -> AccountUsage | None:
@@ -114,3 +114,17 @@ class NexviewAccountEntity(NexviewEntity):
     @property
     def available(self) -> bool:
         return super().available and self.account is not None
+
+
+def _haenge_unter(info: DeviceInfo, coordinator: NexviewCoordinator) -> None:
+    """Dieses Gerät unter Nexview hängen, sobald es das Hauptgerät gibt.
+
+    ⚠️ **Nachträglich gesetzt, nicht im Aufruf.** ``via_device_id`` will eine
+    Zeichenkette, und in der einen Sekunde zwischen erstem Abruf und
+    angelegtem Hauptgerät gibt es noch keine. Ein Kindgerät hängt dann lieber
+    für einen Moment frei, als dass seine Registrierung an einem None
+    scheitert.
+    """
+    kennung = coordinator.main_device_id
+    if kennung:
+        info["via_device_id"] = kennung
