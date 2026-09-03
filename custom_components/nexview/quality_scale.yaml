@@ -14,9 +14,10 @@ rules:
   brands:
     status: todo
     comment: >-
-      brand/ carries an icon at 256 and 512 pixels plus the source svg, so HACS
-      and Home Assistant both have one. What is missing is the submission to
-      home-assistant/brands, which the core requires instead of a local file.
+      brand/ carries icon.txt, which points at a Material Design icon so that
+      there is something rather than nothing. The real logo exists as a design
+      and still has to be turned into png; for the core it goes into
+      home-assistant/brands rather than into this repository.
   common-modules: done
   config-flow: done
   config-flow-test-coverage: done
