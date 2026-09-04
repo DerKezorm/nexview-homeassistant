@@ -192,7 +192,10 @@
               "rejected": "Anfrage abgelehnt",
               "cancelled": "Anfrage abgebrochen",
               "deferred": "Anfrage zurückgestellt",
-              "downloaded": "Download fertig"
+              "downloaded": "Download fertig",
+              "child_wish": "Kind wünscht sich etwas",
+              "watch_ready": "Vorgemerkter Titel ist da",
+              "watch_episodes": "Neue Folgen"
             }
           }
         }
@@ -206,7 +209,9 @@
               "released": "Abgegeben",
               "kept": "Behalten",
               "deleted": "Gelöscht",
-              "grew": "Gewachsen"
+              "grew": "Gewachsen",
+              "scheduled": "Zum Löschen vorgemerkt",
+              "unscheduled": "Löschung zurückgenommen"
             }
           }
         }
@@ -220,7 +225,8 @@
               "ticket": "Neues Ticket",
               "feedback": "Neue Rückmeldung",
               "user_imported": "Konto übernommen",
-              "other": "Andere Meldung"
+              "other": "Andere Meldung",
+              "mediaserver_reconnect": "Medienserver-Zugang abgelaufen"
             }
           }
         }

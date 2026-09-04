@@ -192,7 +192,10 @@
               "rejected": "Request rejected",
               "cancelled": "Request cancelled",
               "deferred": "Request deferred",
-              "downloaded": "Download finished"
+              "downloaded": "Download finished",
+              "child_wish": "Child wishes for a title",
+              "watch_ready": "A title you waited for",
+              "watch_episodes": "New episodes"
             }
           }
         }
@@ -206,7 +209,9 @@
               "released": "Released",
               "kept": "Kept",
               "deleted": "Deleted",
-              "grew": "Grew"
+              "grew": "Grew",
+              "scheduled": "Scheduled for deletion",
+              "unscheduled": "Deletion called off"
             }
           }
         }
@@ -220,7 +225,8 @@
               "ticket": "New ticket",
               "feedback": "New feedback",
               "user_imported": "Account imported",
-              "other": "Other notification"
+              "other": "Other notification",
+              "mediaserver_reconnect": "Media-server access expired"
             }
           }
         }

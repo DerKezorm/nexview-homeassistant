@@ -79,6 +79,27 @@ EVENT_ROUTING: Final[dict[str, tuple[str, str]]] = {
     "feedback": (EVENT_OPERATIONS, "feedback"),
     "feedback_poor": (EVENT_OPERATIONS, "feedback"),
     "user_imported": (EVENT_OPERATIONS, "user_imported"),
+    # --- Nur ueber den persoenlichen Rueckkanal ---------------------------
+    #
+    # ⚠️ **Diese kannte ein hausweites Ziel gar nicht.** Nexviews Hausfunk
+    # meldet neun Gruppen; alles Persoenliche - die Antwort auf *dein* Ticket,
+    # *dein* vorgemerkter Titel - blieb dort aussen vor, weil ein geteiltes
+    # Postfach keinen Empfaenger hat. Seit dem Rueckkanal kommen sie an, und
+    # ohne diese Zeilen landeten sie alle als "other" auf der Betriebs-Entitaet.
+    # Genau so sah es im ersten Betriebslauf auch aus.
+    "ticket_reply": (EVENT_OPERATIONS, "ticket"),
+    "feedback_reply": (EVENT_OPERATIONS, "feedback"),
+    "mediaserver_reconnect": (EVENT_OPERATIONS, "mediaserver_reconnect"),
+    "child_wish": (EVENT_REQUESTS, "child_wish"),
+    "request_fulfilled": (EVENT_REQUESTS, "downloaded"),
+    "rating_outdated": (EVENT_OPERATIONS, "feedback"),
+    # "Sag mir Bescheid" ist kein Anfrage-Ereignis: Wer hier gemeldet wird, hat
+    # nichts angefragt, sondern gewartet. Ein eigener Typ, damit sich eine
+    # Automation darauf allein stuetzen kann.
+    "watch_ready": (EVENT_REQUESTS, "watch_ready"),
+    "watch_episodes": (EVENT_REQUESTS, "watch_episodes"),
+    "storage_scheduled": (EVENT_STORAGE, "scheduled"),
+    "storage_unscheduled": (EVENT_STORAGE, "unscheduled"),
 }
 
 #: The types each event entity declares. Home Assistant refuses to fire a type
@@ -92,13 +113,25 @@ EVENT_TYPES: Final[dict[str, list[str]]] = {
         "cancelled",
         "deferred",
         "downloaded",
+        "child_wish",
+        "watch_ready",
+        "watch_episodes",
     ],
-    EVENT_STORAGE: ["release_requested", "released", "kept", "deleted", "grew"],
+    EVENT_STORAGE: [
+        "release_requested",
+        "released",
+        "kept",
+        "deleted",
+        "grew",
+        "scheduled",
+        "unscheduled",
+    ],
     EVENT_OPERATIONS: [
         "instance_health",
         "ticket",
         "feedback",
         "user_imported",
+        "mediaserver_reconnect",
         "other",
     ],
 }

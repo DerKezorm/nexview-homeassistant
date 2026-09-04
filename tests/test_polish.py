@@ -244,3 +244,56 @@ class TestSayingSoWhenSomethingStops:
         assert "answering for the dashboard again" in caplog.text, (
             "Coming back has to be reported too - that half is usually forgotten."
         )
+
+class TestTheEventTable:
+    """⚠️ Im Betrieb gefunden: eine Meldung landete als "other".
+
+    Nexview meldet ueber den persoenlichen Rueckkanal sechsundzwanzig Arten,
+    nicht die neun des Hausfunks - "Antwort auf dein Ticket", "dein
+    vorgemerkter Titel ist da", "dein Kind wuenscht sich etwas". Fehlt eine in
+    EVENT_ROUTING, faellt sie auf die Betriebs-Entitaet als ``other``, und wer
+    darauf eine Automation bauen will, hat nichts, woran er sie festmachen
+    kann.
+    """
+
+    def test_every_routed_type_is_declared(self) -> None:
+        """Home Assistant feuert keinen Typ, den die Entitaet nicht kennt.
+
+        Ohne diesen Abgleich waere ein Eintrag in EVENT_ROUTING wirkungslos -
+        und zwar lautlos: Die Nachricht kaeme an, das Ereignis nicht.
+        """
+        from custom_components.nexview.const import EVENT_ROUTING, EVENT_TYPES
+
+        fehlend = [
+            f"{gruppe}/{typ}"
+            for gruppe, typ in EVENT_ROUTING.values()
+            if typ not in EVENT_TYPES.get(gruppe, [])
+        ]
+        assert fehlend == [], (
+            f"Diese Ereignistypen werden zugeordnet, aber von ihrer Entitaet "
+            f"nicht angemeldet: {fehlend}"
+        )
+        assert len(EVENT_ROUTING) >= 20, (
+            f"Nur {len(EVENT_ROUTING)} Zuordnungen - das ist wieder der Stand "
+            "vor dem persoenlichen Rueckkanal."
+        )
+
+    def test_every_declared_type_has_a_name_in_both_languages(self) -> None:
+        """Ein Typ ohne Text steht als roher Bezeichner auf dem Bildschirm."""
+        import json
+        from pathlib import Path
+
+        from custom_components.nexview.const import EVENT_TYPES
+
+        basis = Path(__file__).parent.parent / "custom_components" / "nexview"
+        geprueft = 0
+        for datei in ("de.json", "en.json"):
+            texte = json.loads((basis / "translations" / datei).read_text("utf-8"))
+            for gruppe, typen in EVENT_TYPES.items():
+                zustaende = texte["entity"]["event"][gruppe]["state_attributes"][
+                    "event_type"
+                ]["state"]
+                for typ in typen:
+                    assert typ in zustaende, f"{datei}: {gruppe}/{typ} hat keinen Text"
+                    geprueft += 1
+        assert geprueft > 40, f"Nur {geprueft} Texte geprueft - zu wenig."

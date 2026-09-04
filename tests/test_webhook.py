@@ -450,3 +450,69 @@ class TestTheSwitch:
         assert (
             issues.async_get_issue(DOMAIN, f"push_missing_{entry.entry_id}") is None
         ), "Beide Meldungen zugleich waeren zwei Erklaerungen fuer eine Ursache."
+
+class TestDeletingTheIntegration:
+    """⚠️ Gefragt worden, bevor irgendein Test es geprueft hatte.
+
+    "Werden die eigentlich geloescht, wenn ich die Integration in HA loesche?
+    Sonst funken die ja immer ins Leere." Sie wurden nicht. Nexview haette
+    weiter eine Adresse angerufen, an der niemand mehr zuhoert, seinen
+    Postausgang mit Fehlversuchen gefuellt und dem Betreiber eine Zeile
+    hinterlassen, deren Anbindung es seit Wochen nicht mehr gibt.
+    """
+
+    async def test_removing_it_withdraws_the_callback(
+        self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
+    ) -> None:
+        await setup_entry(hass, entry)
+
+        with patch(
+            "custom_components.nexview.api.NexviewClient.push_remove", AsyncMock()
+        ) as abgemeldet:
+            assert await hass.config_entries.async_remove(entry.entry_id)
+            await hass.async_block_till_done()
+
+        assert abgemeldet.call_count == 1, (
+            "Nexview wurde nicht gesagt, dass dieses Home Assistant weg ist."
+        )
+
+    async def test_a_restart_does_not_withdraw_anything(
+        self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
+    ) -> None:
+        """⚠️ Der Grund, warum das nicht in async_unload_entry steht.
+
+        Entladen wird bei jedem Neustart und bei jeder Aenderung an den
+        Optionen. Wuerde dort abgemeldet, brauchte jeder Neustart eine neue
+        Anmeldung samt neuem Bestaetigungscode - und zwischendurch waere
+        Nexview blind.
+        """
+        await setup_entry(hass, entry)
+
+        with patch(
+            "custom_components.nexview.api.NexviewClient.push_remove", AsyncMock()
+        ) as abgemeldet:
+            assert await hass.config_entries.async_unload(entry.entry_id)
+            await hass.async_block_till_done()
+
+        assert abgemeldet.call_count == 0, "Ein Neustart hat den Rueckkanal abgemeldet."
+
+    async def test_an_unreachable_nexview_does_not_block_the_delete(
+        self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
+    ) -> None:
+        """Wer loeschen will, soll loeschen koennen - auch wenn Nexview gerade aus ist.
+
+        Der Rueckkanal bleibt dann drueben stehen. Genau dafuer gibt es die
+        Liste beim Betreiber, in der eine Zeile mit einem Klick verschwindet.
+        """
+        from custom_components.nexview.api import NexviewConnectionError
+
+        await setup_entry(hass, entry)
+
+        with patch(
+            "custom_components.nexview.api.NexviewClient.push_remove",
+            AsyncMock(side_effect=NexviewConnectionError("weg")),
+        ):
+            assert await hass.config_entries.async_remove(entry.entry_id)
+            await hass.async_block_till_done()
+
+        assert hass.config_entries.async_get_entry(entry.entry_id) is None

@@ -171,6 +171,42 @@ async def async_unload_entry(hass: HomeAssistant, entry: NexviewConfigEntry) -> 
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
+async def async_remove_entry(hass: HomeAssistant, entry: NexviewConfigEntry) -> None:
+    """Tell Nexview to stop calling, now that this entry is gone for good.
+
+    ⚠️ **Here and not in ``async_unload_entry``.** That one also runs on every
+    restart and every options change; withdrawing there would mean a fresh
+    registration and a fresh confirmation code on each reboot. This one runs
+    only when somebody deletes the integration.
+
+    ⚠️ **Without this, Nexview keeps calling an address nobody answers.** Its
+    outbox collects failed attempts, gives up after three, and the operator
+    finds a row in the callback list whose last error is a connection refused -
+    for an integration that has not existed for weeks. Nothing breaks, but
+    somebody has to clean up by hand what a delete could have cleaned up
+    itself.
+
+    ⚠️ **It can still fail, and that is not an error worth stopping for.** If
+    Nexview is down at the moment of deletion, the entry goes away here and the
+    callback stays over there. That is what the operator's callback list is
+    for: it shows the address, and one click disconnects it.
+
+    ``runtime_data`` is gone by now - the entry was unloaded first - so the
+    client is built again from what was stored.
+    """
+    session = async_get_clientsession(hass)
+    client = NexviewClient(session, entry.data[CONF_URL], entry.data[CONF_KEY])
+    try:
+        await client.push_remove()
+    except NexviewError as err:
+        _LOGGER.info(
+            "Nexview could not be told that this Home Assistant is gone: %s. "
+            "The callback can be disconnected in Nexview under notification "
+            "settings",
+            err,
+        )
+
+
 async def async_remove_config_entry_device(
     hass: HomeAssistant, entry: NexviewConfigEntry, device: DeviceEntry
 ) -> bool:
