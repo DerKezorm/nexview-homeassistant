@@ -33,6 +33,7 @@ from .models import (
     Identity,
     Instance,
     MediaServer,
+    Personal,
     Release,
     Tile,
     Version,
@@ -312,6 +313,29 @@ class NexviewClient:
             for entry in day.get("entries") or ():
                 out.append(Release.from_json({**entry, "date": day.get("date")}))
         return out
+
+    async def personal(self) -> Personal:
+        """Das eigene Konto: Kontingent, Speicher, Ungelesenes, eigene Tickets.
+
+        ⚠️ **Vier Aufrufe, und alle vier sind zugesagt.** Das ist der einzige
+        Teil der Integration, der ausschliesslich auf Adressen mit
+        Stabilitätsversprechen steht - und zugleich der einzige, den ein
+        persönlicher Schlüssel überhaupt füllen kann.
+        """
+        quota = await self._call("GET", "/api/v1/requests/quota") or {}
+        storage = await self._call("GET", "/api/v1/storage/me") or {}
+        try:
+            unread = (await self._call("GET", "/api/v1/notifications/unread/count")) or {}
+            tickets = (await self._call("GET", "/api/v1/tickets/open-count")) or {}
+        except NexviewError:
+            # Die beiden Zähler sind Beiwerk. Ohne sie stimmt der Rest noch.
+            unread, tickets = {}, {}
+        return Personal.from_json(
+            quota,
+            storage,
+            int(unread.get("unread") or 0),
+            int(tickets.get("count") or 0),
+        )
 
     async def version(self) -> Version:
         """Installed version, and whether a newer one exists."""

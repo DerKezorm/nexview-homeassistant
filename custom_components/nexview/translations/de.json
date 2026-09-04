@@ -66,6 +66,9 @@
       },
       "instance_webhook": {
         "name": "Ruft zurück"
+      },
+      "my_quota_exhausted": {
+        "name": "Mein Kontingent aufgebraucht"
       }
     },
     "sensor": {
@@ -149,6 +152,33 @@
       },
       "server_titles": {
         "name": "Titel auf diesem Server"
+      },
+      "my_movie_quota_used": {
+        "name": "Meine Filme verbraucht"
+      },
+      "my_movie_quota_remaining": {
+        "name": "Meine Filme übrig"
+      },
+      "my_series_quota_used": {
+        "name": "Meine Serien verbraucht"
+      },
+      "my_series_quota_remaining": {
+        "name": "Meine Serien übrig"
+      },
+      "my_storage_used": {
+        "name": "Mein Speicher belegt"
+      },
+      "my_storage_remaining": {
+        "name": "Mein Speicher übrig"
+      },
+      "my_items": {
+        "name": "Meine Titel"
+      },
+      "my_unread": {
+        "name": "Meine ungelesenen Meldungen"
+      },
+      "my_open_tickets": {
+        "name": "Meine offenen Tickets"
       }
     },
     "event": {
@@ -376,6 +406,10 @@
     "push_missing": {
       "title": "Nexview erreicht Home Assistant nicht",
       "description": "{name} ist verbunden und die Zahlen stimmen, aber Nexview kann nicht zurückrufen. Ereignisse kommen deshalb spät oder gar nicht, und Home Assistant fragt stattdessen alle 30 Sekunden nach.\n\nNexview muss {url} erreichen können. Wenn es das kann, trag die Adresse in Nexview von Hand ein unter Einstellungen, Benachrichtigungen, Webhook, und bestätige sie mit dem Code aus der Testnachricht."
+    },
+    "push_needs_operator": {
+      "title": "Nexview kann dieses Home Assistant nicht benachrichtigen",
+      "description": "{name} ist verbunden und die Zahlen stimmen, aber der verwendete Schlüssel darf in Nexview keine Benachrichtigungsziele anlegen - das ist dort Verwaltungssache. Ereignisse kommen deshalb nur, wenn Home Assistant nachfragt, also alle 30 Sekunden.\\n\\nZwei Wege: einen Schlüssel eines Kontos nehmen, das Nexview einrichten darf, oder diese Adresse in Nexview von Hand eintragen unter Einstellungen, Benachrichtigungen, Webhook, und mit dem Code aus der Testnachricht bestätigen:\\n\\n{url}"
     }
   },
   "options": {

@@ -116,14 +116,15 @@ class TestAccounts:
         )
         assert konto is not None and konto.name == "Gast"
 
-    async def test_an_unlimited_allowance_is_not_zero(
+    async def test_an_unlimited_allowance_has_no_remainder_entity(
         self, hass: HomeAssistant, nexview: AiohttpClientMocker
     ) -> None:
-        """⚠️ The mistake worth guarding against.
+        """⚠️ Unbegrenzt heisst nicht "unbekannt".
 
-        Where Nexview grants unlimited, there is no number left over. Showing
-        a nought would read as an account that has used everything up - the
-        exact opposite of the truth.
+        Wo Nexview keine Grenze setzt, gibt es keine Restmenge. Eine Null waere
+        das Gegenteil der Wahrheit, und ein dauerhaftes "Nicht verfuegbar"
+        liest sich wie ein Fehler. Also entsteht der Eintrag gar nicht erst -
+        und er entsteht von selbst, sobald jemand doch eine Grenze setzt.
         """
         entry = MockConfigEntry(
             domain=DOMAIN,
@@ -138,8 +139,14 @@ class TestAccounts:
         await setup_entry(hass, entry)
 
         assert _state(hass, entry, "account1_movie_quota_used").state == "2"
-        offen = _state(hass, entry, "account1_movie_quota_remaining")
-        assert offen.state == "unavailable"
+
+        registry = er.async_get(hass)
+        assert (
+            registry.async_get_entity_id(
+                "sensor", DOMAIN, f"{entry.entry_id}_account1_movie_quota_remaining"
+            )
+            is None
+        ), "Für ein unbegrenztes Kontingent darf kein leerer Eintrag entstehen."
 
     async def test_a_full_allowance_shows_up_as_a_problem(
         self, hass: HomeAssistant, nexview: AiohttpClientMocker

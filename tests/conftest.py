@@ -217,6 +217,38 @@ PLAYING: dict[str, Any] = {
     "bild_umrechnungen": 1,
 }
 
+#: Das eigene Konto. Vier zugesagte Adressen, die jeder Schlüssel lesen darf -
+#: und für einen persönlichen Zugang das Einzige, was er überhaupt füllt.
+QUOTA: dict[str, Any] = {
+    "movie": {
+        "limit": 5,
+        "used": 1,
+        "remaining": 4,
+        "unlimited": False,
+        "exhausted": False,
+        "period": "week",
+        "resets_at": "2026-09-08T00:00:00",
+    },
+    "tv": {
+        "limit": None,
+        "used": 3,
+        "remaining": None,
+        "unlimited": True,
+        "exhausted": False,
+        "period": "week",
+        "resets_at": None,
+    },
+    "auto_approve": False,
+}
+
+MY_STORAGE: dict[str, Any] = {
+    "used_bytes": 100_000_000_000,
+    "items": 4,
+    "limit_bytes": None,
+    "pending_bytes": 0,
+    "entries": [],
+}
+
 ABOUT: dict[str, Any] = {
     "version": "0.30.0",
     "latest_version": "0.31.0",
@@ -261,6 +293,10 @@ def nexview(aioclient_mock: AiohttpClientMocker) -> AiohttpClientMocker:
     aioclient_mock.get(f"{URL}/api/admin/stats", json=STATS)
     aioclient_mock.get(f"{URL}/api/calendar", json=CALENDAR)
     aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
+    aioclient_mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
+    aioclient_mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
+    aioclient_mock.get(f"{URL}/api/v1/notifications/unread/count", json={"unread": 7})
+    aioclient_mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
     return aioclient_mock
 
 

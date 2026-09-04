@@ -156,6 +156,10 @@ class NexviewCoordinator(DataUpdateCoordinator[Snapshot]):
                     "oldest request", self.client.oldest_pending_hours()
                 )
 
+        # ⚠️ Für jeden Schlüssel, ohne Rechteprüfung. Das eigene Konto darf
+        # jeder lesen, und ohne diesen Teil bliebe von einem persönlichen
+        # Zugang nichts übrig als "Nexview antwortet".
+        snapshot.personal = await self._optional("own account", self.client.personal())
         snapshot.version = await self._optional("version", self.client.version())
         return snapshot
 

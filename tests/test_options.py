@@ -19,7 +19,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 
 from custom_components.nexview.const import CONF_ACCOUNTS, DOMAIN
 
-from .conftest import ABOUT, IDENTITY_USER, URL, setup_entry
+from .conftest import ABOUT, IDENTITY_USER, MY_STORAGE, QUOTA, URL, setup_entry
 
 
 @pytest.fixture(autouse=True)
@@ -76,6 +76,12 @@ class TestPickingAccounts:
         aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_USER)
         aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
         aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
+        aioclient_mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
+        aioclient_mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
+        aioclient_mock.get(
+            f"{URL}/api/v1/notifications/unread/count", json={"unread": 0}
+        )
+        aioclient_mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
 
         await setup_entry(hass, entry)
 
@@ -158,6 +164,12 @@ class TestInstanceErrands:
         aioclient_mock.get(
             f"{URL}/api/v1/admin/requests/pending/count", json={"pending": 0}
         )
+        aioclient_mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
+        aioclient_mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
+        aioclient_mock.get(
+            f"{URL}/api/v1/notifications/unread/count", json={"unread": 0}
+        )
+        aioclient_mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
         aioclient_mock.get(
             f"{URL}/api/settings/qualitaetsprofile/medienserver",
             json={"server": [], "instanzen": [], "warnungen": []},

@@ -70,7 +70,9 @@ class TestMediaServers:
             ABOUT,
             ANALYSIS,
             IDENTITY_ADMIN,
+            MY_STORAGE,
             PLAYING,
+            QUOTA,
             STATS,
             TILE,
         )
@@ -86,6 +88,13 @@ class TestMediaServers:
         aioclient_mock.get(f"{URL}/api/admin/stats", json=STATS)
         aioclient_mock.get(f"{URL}/api/calendar", json={"days": []})
         aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
+        aioclient_mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
+        aioclient_mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
+        aioclient_mock.get(
+            f"{URL}/api/v1/notifications/unread/count", json={"unread": 0}
+        )
+        aioclient_mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
+        aioclient_mock.get(f"{URL}/api/admin/requests", json=[])
         aioclient_mock.get(
             f"{URL}/api/settings/qualitaetsprofile/medienserver",
             json={

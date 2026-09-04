@@ -26,7 +26,15 @@ from custom_components.nexview.const import (
     SERVICE_SEARCH,
 )
 
-from .conftest import ABOUT, IDENTITY_READONLY, TILE, URL, setup_entry
+from .conftest import (
+    ABOUT,
+    IDENTITY_READONLY,
+    MY_STORAGE,
+    QUOTA,
+    TILE,
+    URL,
+    setup_entry,
+)
 
 #: What Nexview answers for the request list. Invented titles and invented
 #: people - this repository is public.
@@ -69,6 +77,10 @@ def _nur_lesend(mock: AiohttpClientMocker) -> None:
     mock.get(f"{URL}/api/admin/stats", json={"users": []})
     mock.get(f"{URL}/api/calendar", json={"days": []})
     mock.get(f"{URL}/api/v1/about", json=ABOUT)
+    mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
+    mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
+    mock.get(f"{URL}/api/v1/notifications/unread/count", json={"unread": 0})
+    mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
 
 
 def _volle_kulisse(mock: AiohttpClientMocker) -> None:
@@ -89,6 +101,10 @@ def _volle_kulisse(mock: AiohttpClientMocker) -> None:
     mock.get(f"{URL}/api/admin/stats", json=STATS)
     mock.get(f"{URL}/api/calendar", json={"days": []})
     mock.get(f"{URL}/api/v1/about", json=ABOUT)
+    mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
+    mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
+    mock.get(f"{URL}/api/v1/notifications/unread/count", json={"unread": 0})
+    mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
 
 
 @pytest.fixture(autouse=True)

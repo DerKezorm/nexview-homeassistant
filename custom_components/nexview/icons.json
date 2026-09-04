@@ -12,6 +12,9 @@
         "state": {
           "off": "mdi:phone-hangup"
         }
+      },
+      "my_quota_exhausted": {
+        "default": "mdi:gauge-full"
       }
     },
     "sensor": {
@@ -95,6 +98,33 @@
       },
       "server_titles": {
         "default": "mdi:filmstrip"
+      },
+      "my_movie_quota_used": {
+        "default": "mdi:movie-check"
+      },
+      "my_movie_quota_remaining": {
+        "default": "mdi:movie-plus"
+      },
+      "my_series_quota_used": {
+        "default": "mdi:television-classic"
+      },
+      "my_series_quota_remaining": {
+        "default": "mdi:television-plus"
+      },
+      "my_storage_used": {
+        "default": "mdi:database"
+      },
+      "my_storage_remaining": {
+        "default": "mdi:database-plus"
+      },
+      "my_items": {
+        "default": "mdi:bookmark-multiple"
+      },
+      "my_unread": {
+        "default": "mdi:bell-badge"
+      },
+      "my_open_tickets": {
+        "default": "mdi:ticket-account"
       }
     },
     "event": {

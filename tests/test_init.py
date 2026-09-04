@@ -29,7 +29,9 @@ from .conftest import (
     ANALYSIS,
     IDENTITY_READONLY,
     IDENTITY_USER,
+    MY_STORAGE,
     PLAYING,
+    QUOTA,
     SERVERS,
     TILE,
     URL,
@@ -48,6 +50,10 @@ def _readonly_nexview(mock: AiohttpClientMocker) -> None:
     mock.get(f"{URL}/api/admin/stats", json={"users": []})
     mock.get(f"{URL}/api/calendar", json={"days": []})
     mock.get(f"{URL}/api/v1/about", json=ABOUT)
+    mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
+    mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
+    mock.get(f"{URL}/api/v1/notifications/unread/count", json={"unread": 0})
+    mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
 
 
 def _keys(hass: HomeAssistant, entry: MockConfigEntry) -> set[str]:
@@ -113,21 +119,34 @@ class TestWhatTheKeyBringsWithIt:
         entry: MockConfigEntry,
         aioclient_mock: AiohttpClientMocker,
     ) -> None:
-        """⚠️ Not a dozen permanently unavailable entities.
+        """⚠️ Nichts von der Betreibersicht - aber die eigenen Zahlen schon.
 
-        Creating everything and leaving most of it grey is what makes a
-        working integration look broken to anybody whose account is not an
-        administrator.
+        Ein persönlicher Schlüssel sieht das Haus nicht: keine Instanzen, keine
+        fremden Konten, keine Befunde. Was er sehr wohl sieht, ist sein eigenes
+        Konto, und ohne das bliebe von so einem Zugang nichts übrig als
+        "Nexview antwortet" - genau so sah es in der Praxis auch aus, bis
+        es jemandem auffiel.
         """
         aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_USER)
         aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
         aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
+        aioclient_mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
+        aioclient_mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
+        aioclient_mock.get(
+            f"{URL}/api/v1/notifications/unread/count", json={"unread": 7}
+        )
+        aioclient_mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
 
         await setup_entry(hass, entry)
 
         keys = _keys(hass, entry)
         assert keys & {"free_space", "findings_error", "pending_requests"} == set()
         assert "reachable" in keys, "Whether Nexview answers is everybody's business."
+        assert "my_movie_quota_used" in keys, "Das eigene Konto darf jeder lesen."
+        assert "my_unread" in keys
+        assert "my_series_quota_remaining" not in keys, (
+            "Die Serien sind unbegrenzt - dafür gibt es keinen Restwert."
+        )
 
     async def test_the_figures_arrive(
         self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker

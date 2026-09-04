@@ -279,6 +279,68 @@ class AccountUsage:
 
 
 @dataclass(frozen=True, slots=True)
+class Personal:
+    """Was dieser Schlüssel über sein eigenes Konto weiß.
+
+    ⚠️ **Der Teil, den jeder bekommt.** Alles andere hängt an Rechten, die ein
+    persönlicher Schlüssel nicht hat - und ohne das hier bliebe von so einem
+    Zugang nichts übrig als "Nexview antwortet". Die vier Adressen dahinter
+    stehen alle unter Nexviews Stabilitätszusage, was diesen Teil zum
+    verlässlichsten der ganzen Integration macht.
+    """
+
+    movies: Quota
+    series: Quota
+    storage: Quota
+    #: Titel, die dem eigenen Konto zugerechnet sind.
+    items: int = 0
+    unread: int = 0
+    open_tickets: int = 0
+    #: Wann das Kontingent zurückgesetzt wird, als ISO-Zeitpunkt. ``None`` bei
+    #: einem Kontingent ohne Zeitraum.
+    resets_at: str | None = None
+
+    @property
+    def exhausted(self) -> bool:
+        return self.movies.exhausted or self.series.exhausted or self.storage.exhausted
+
+    @classmethod
+    def from_json(
+        cls,
+        quota: dict[str, Any],
+        storage: dict[str, Any],
+        unread: int,
+        tickets: int,
+    ) -> Personal:
+        def teil(roh: dict[str, Any]) -> Quota:
+            grenze = roh.get("limit")
+            return Quota(
+                used=int(roh.get("used") or 0),
+                limit=int(grenze) if isinstance(grenze, (int, float)) else None,
+            )
+
+        film = quota.get("movie") or {}
+        serie = quota.get("tv") or {}
+        speichergrenze = storage.get("limit_bytes")
+        return cls(
+            movies=teil(film),
+            series=teil(serie),
+            storage=Quota(
+                used=int(storage.get("used_bytes") or 0),
+                limit=(
+                    int(speichergrenze)
+                    if isinstance(speichergrenze, (int, float))
+                    else None
+                ),
+            ),
+            items=int(storage.get("items") or 0),
+            unread=unread,
+            open_tickets=tickets,
+            resets_at=film.get("resets_at") or serie.get("resets_at") or None,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class MediaServer:
     """One Plex, Jellyfin or Emby behind Nexview.
 
@@ -366,4 +428,6 @@ class Snapshot:
     #: nothing is waiting - which a zero would read as "somebody just asked".
     oldest_pending_hours: float | None = None
     version: Version | None = None
+    #: Das eigene Konto. Das Einzige, was jeder Schlüssel lesen darf.
+    personal: Personal | None = None
     extra: dict[str, Any] = field(default_factory=dict)

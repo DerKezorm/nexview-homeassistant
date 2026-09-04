@@ -31,7 +31,13 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     coordinator = entry.runtime_data
-    async_add_entities([NexviewReachable(coordinator), NexviewPushing(coordinator)])
+    entities: list[BinarySensorEntity] = [
+        NexviewReachable(coordinator),
+        NexviewPushing(coordinator),
+    ]
+    if coordinator.data.personal is not None:
+        entities.append(NexviewMyQuotaExhausted(coordinator))
+    async_add_entities(entities)
 
     known_instances: set[str] = set()
     known_accounts: set[int] = set()
@@ -182,3 +188,25 @@ class NexviewInstanceWebhook(NexviewInstanceEntity, BinarySensorEntity):
             and self.instance is not None
             and self.instance.webhook_active is not None
         )
+
+
+class NexviewMyQuotaExhausted(NexviewEntity, BinarySensorEntity):
+    """Ob das eigene Konto gerade nichts mehr anfragen kann.
+
+    Dieselbe Regel wie bei fremden Konten: Stückzahl und Speicher gelten
+    beide, und eines reicht.
+    """
+
+    entity_description = BinarySensorEntityDescription(
+        key="my_quota_exhausted",
+        translation_key="my_quota_exhausted",
+        device_class=BinarySensorDeviceClass.PROBLEM,
+    )
+
+    def __init__(self, coordinator: NexviewCoordinator) -> None:
+        super().__init__(coordinator, "my_quota_exhausted")
+
+    @property
+    def is_on(self) -> bool:
+        eigenes = self.coordinator.data.personal
+        return bool(eigenes and eigenes.exhausted)

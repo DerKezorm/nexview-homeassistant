@@ -29,6 +29,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .api import (
     CAP_ADMINISTER,
     CAP_DECIDE,
+    CAP_READ,
     AccountUsage,
     Instance,
     MediaServer,
@@ -177,11 +178,98 @@ SENSORS: tuple[NexviewSensorDescription, ...] = (
 )
 
 
+#: Das eigene Konto. Diese Werte hängen an keiner Rolle - jeder Schlüssel
+#: darf sie lesen - und sie stehen alle auf zugesagten Adressen.
+PERSONAL_SENSORS: tuple[NexviewSensorDescription, ...] = (
+    NexviewSensorDescription(
+        key="my_movie_quota_used",
+        translation_key="my_movie_quota_used",
+        requires=CAP_READ,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda s: s.personal.movies.used if s.personal else None,
+    ),
+    NexviewSensorDescription(
+        key="my_movie_quota_remaining",
+        translation_key="my_movie_quota_remaining",
+        requires=CAP_READ,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda s: s.personal.movies.remaining if s.personal else None,
+    ),
+    NexviewSensorDescription(
+        key="my_series_quota_used",
+        translation_key="my_series_quota_used",
+        requires=CAP_READ,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda s: s.personal.series.used if s.personal else None,
+    ),
+    NexviewSensorDescription(
+        key="my_series_quota_remaining",
+        translation_key="my_series_quota_remaining",
+        requires=CAP_READ,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda s: s.personal.series.remaining if s.personal else None,
+    ),
+    NexviewSensorDescription(
+        key="my_storage_used",
+        translation_key="my_storage_used",
+        requires=CAP_READ,
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        suggested_display_precision=1,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda s: s.personal.storage.used if s.personal else None,
+    ),
+    NexviewSensorDescription(
+        key="my_storage_remaining",
+        translation_key="my_storage_remaining",
+        requires=CAP_READ,
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        suggested_display_precision=1,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda s: s.personal.storage.remaining if s.personal else None,
+    ),
+    NexviewSensorDescription(
+        key="my_items",
+        translation_key="my_items",
+        requires=CAP_READ,
+        entity_registry_enabled_default=False,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda s: s.personal.items if s.personal else None,
+    ),
+    NexviewSensorDescription(
+        key="my_unread",
+        translation_key="my_unread",
+        requires=CAP_READ,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda s: s.personal.unread if s.personal else None,
+    ),
+    NexviewSensorDescription(
+        key="my_open_tickets",
+        translation_key="my_open_tickets",
+        requires=CAP_READ,
+        entity_registry_enabled_default=False,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda s: s.personal.open_tickets if s.personal else None,
+    ),
+)
+
+
 @dataclass(frozen=True, kw_only=True)
 class NexviewAccountSensorDescription(SensorEntityDescription):
     """One figure about one account."""
 
     value_fn: Callable[[AccountUsage], int | None]
+    #: Whether this figure exists at all for a given account.
+    #:
+    #: ⚠️ **Unbegrenzt heisst nicht "unbekannt".** Wo Nexview kein Limit
+    #: setzt, gibt es keine Restmenge - und ein Eintrag, der dauerhaft "Nicht
+    #: verfuegbar" zeigt, liest sich wie ein Fehler statt wie eine Freiheit.
+    #: Solche Eintraege entstehen deshalb gar nicht erst, und sie entstehen
+    #: von selbst, sobald jemand in Nexview doch eine Grenze setzt.
+    applies_to: Callable[[AccountUsage], bool] = lambda a: True
 
 
 ACCOUNT_SENSORS: tuple[NexviewAccountSensorDescription, ...] = (
@@ -194,6 +282,7 @@ ACCOUNT_SENSORS: tuple[NexviewAccountSensorDescription, ...] = (
     NexviewAccountSensorDescription(
         key="movie_quota_remaining",
         translation_key="movie_quota_remaining",
+        applies_to=lambda a: not a.movies.unlimited,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda a: a.movies.remaining,
     ),
@@ -206,6 +295,7 @@ ACCOUNT_SENSORS: tuple[NexviewAccountSensorDescription, ...] = (
     NexviewAccountSensorDescription(
         key="series_quota_remaining",
         translation_key="series_quota_remaining",
+        applies_to=lambda a: not a.series.unlimited,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda a: a.series.remaining,
     ),
@@ -228,6 +318,7 @@ ACCOUNT_SENSORS: tuple[NexviewAccountSensorDescription, ...] = (
     NexviewAccountSensorDescription(
         key="storage_remaining",
         translation_key="storage_remaining",
+        applies_to=lambda a: not a.storage.unlimited,
         device_class=SensorDeviceClass.DATA_SIZE,
         native_unit_of_measurement=UnitOfInformation.BYTES,
         suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
@@ -315,12 +406,31 @@ async def async_setup_entry(
         if identity.may(description.requires)
     )
 
+    # ⚠️ **Die eigenen Zahlen, für jeden Schlüssel.** Ohne sie bekommt ein
+    # persönlicher Zugang nichts als "Nexview antwortet" - und genau so sah es
+    # in der Praxis auch aus. Die Rest-Einträge folgen derselben Regel wie bei
+    # fremden Konten: kein Eintrag, wo es keine Grenze gibt.
+    eigenes = coordinator.data.personal
+    if eigenes is not None:
+        ohne_grenze = {
+            "my_movie_quota_remaining": eigenes.movies.unlimited,
+            "my_series_quota_remaining": eigenes.series.unlimited,
+            "my_storage_remaining": eigenes.storage.unlimited,
+        }
+        async_add_entities(
+            NexviewSensor(coordinator, description)
+            for description in PERSONAL_SENSORS
+            if not ohne_grenze.get(description.key, False)
+        )
+
     # ⚠️ **Instances and accounts come and go while this runs.** Somebody adds
     # a second Sonarr, or picks another account in the options. Building the
     # list once at setup would mean a restart for every change.
     known_instances: set[str] = set()
     known_accounts: set[int] = set()
     known_servers: set[str] = set()
+    #: Welche Konto-Werte schon existieren, als (Konto, Schluessel).
+    angelegt: set[tuple[int, str]] = set()
 
     @callback
     def _add_new() -> None:
@@ -346,14 +456,33 @@ async def async_setup_entry(
             )
         known_servers.update(current_servers)
 
+        # Nicht nur das Konto, auch welche seiner Werte schon angelegt sind:
+        # Setzt jemand in Nexview nachtraeglich eine Grenze, entsteht der
+        # zugehoerige Eintrag beim naechsten Abruf.
+        for user_id, konto in coordinator.data.accounts.items():
+            if user_id not in known_accounts:
+                continue
+            neu.extend(
+                NexviewAccountSensor(coordinator, user_id, d)
+                for d in ACCOUNT_SENSORS
+                if d.applies_to(konto)
+                and (user_id, d.key) not in angelegt
+            )
+
         current_accounts = set(coordinator.data.accounts)
         known_accounts.intersection_update(current_accounts)
         for user_id in current_accounts - known_accounts:
+            konto = coordinator.data.accounts[user_id]
             neu.extend(
-                NexviewAccountSensor(coordinator, user_id, d) for d in ACCOUNT_SENSORS
+                NexviewAccountSensor(coordinator, user_id, d)
+                for d in ACCOUNT_SENSORS
+                if d.applies_to(konto)
             )
         known_accounts.update(current_accounts)
 
+        for e in neu:
+            if isinstance(e, NexviewAccountSensor):
+                angelegt.add((e.user_id, e.entity_description.key))
         if neu:
             async_add_entities(neu)
 

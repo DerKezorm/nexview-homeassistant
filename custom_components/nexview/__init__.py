@@ -11,7 +11,6 @@ import logging
 from typing import Any, cast
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import (
     HomeAssistant,
@@ -32,6 +31,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import ConfigType
 
 from .api import (
+    CAP_CONFIGURE,
     CAP_DECIDE,
     AccountUsage,
     NexviewAuthError,
@@ -188,7 +188,11 @@ async def async_remove_config_entry_device(
 
 
 def _async_report_push(
-    hass: HomeAssistant, entry: ConfigEntry, *, pushing: bool, url: str
+    hass: HomeAssistant,
+    entry: NexviewConfigEntry,
+    *,
+    pushing: bool,
+    url: str,
 ) -> None:
     """Say out loud when the way back is missing.
 
@@ -197,19 +201,30 @@ def _async_report_push(
     arrive late or not at all, and nothing on screen explains why. The Seerr
     integration has exactly this gap: its event entity stays mute and its
     quality file claims there is no case for a repair issue. There is.
+
+    ⚠️ **Two causes, two sentences.** A key that may not configure Nexview
+    cannot register an address there, and telling that person to check whether
+    Nexview can reach Home Assistant sends them after a problem they do not
+    have. Which of the two it is, the key already knows.
     """
-    issue_id = f"push_missing_{entry.entry_id}"
+    darf_einrichten = entry.runtime_data.data.identity.may(CAP_CONFIGURE)
+    schluessel = "push_missing" if darf_einrichten else "push_needs_operator"
+
+    # Beide Kennungen aufräumen: Wer den Schlüssel wechselt, soll nicht die
+    # Meldung der alten Ursache behalten.
+    for kennung in ("push_missing", "push_needs_operator"):
+        if pushing or kennung != schluessel:
+            ir.async_delete_issue(hass, DOMAIN, f"{kennung}_{entry.entry_id}")
     if pushing:
-        ir.async_delete_issue(hass, DOMAIN, issue_id)
         return
 
     ir.async_create_issue(
         hass,
         DOMAIN,
-        issue_id,
+        f"{schluessel}_{entry.entry_id}",
         is_fixable=False,
         severity=ir.IssueSeverity.WARNING,
-        translation_key="push_missing",
+        translation_key=schluessel,
         translation_placeholders={"url": url, "name": entry.title},
     )
 
