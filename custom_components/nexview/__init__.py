@@ -31,7 +31,6 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from homeassistant.helpers.typing import ConfigType
 
 from .api import (
-    CAP_CONFIGURE,
     CAP_DECIDE,
     AccountUsage,
     NexviewAuthError,
@@ -49,6 +48,7 @@ from .const import (
     ATTR_REQUEST_ID,
     ATTR_STATUS,
     CONF_KEY,
+    CONF_PUSH,
     CONF_URL,
     DOMAIN,
     SERVICE_ACTIVE_DOWNLOADS,
@@ -128,9 +128,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: NexviewConfigEntry) -> b
     hook.register()
     entry.async_on_unload(hook.unregister)
 
-    pushing = await hook.async_ensure_target()
+    # Wer den Haken ausmacht, hat einen Grund - meistens den, dass Nexview
+    # dieses Home Assistant nicht erreichen kann. Dann soll auch die
+    # Reparaturmeldung weg sein und nicht bei jedem Neustart wiederkommen.
+    gewuenscht = entry.options.get(CONF_PUSH, True)
+    if gewuenscht:
+        pushing = await hook.async_ensure_target()
+    else:
+        pushing = False
+        await hook.async_forget_target()
     coordinator.set_pushing(pushing)
-    _async_report_push(hass, entry, pushing=pushing, url=hook.url)
+    _async_report_push(
+        hass,
+        entry,
+        pushing=pushing,
+        url=hook.url,
+        gewuenscht=gewuenscht,
+        zu_alt=hook.zu_alt,
+    )
 
     # ⚠️ **Nexview itself is registered here, not as a side effect.** The
     # instances and accounts hang off it by device id, and an id only exists
@@ -193,6 +208,8 @@ def _async_report_push(
     *,
     pushing: bool,
     url: str,
+    gewuenscht: bool = True,
+    zu_alt: bool = False,
 ) -> None:
     """Say out loud when the way back is missing.
 
@@ -202,20 +219,23 @@ def _async_report_push(
     integration has exactly this gap: its event entity stays mute and its
     quality file claims there is no case for a repair issue. There is.
 
-    ⚠️ **Two causes, two sentences.** A key that may not configure Nexview
-    cannot register an address there, and telling that person to check whether
-    Nexview can reach Home Assistant sends them after a problem they do not
-    have. Which of the two it is, the key already knows.
-    """
-    darf_einrichten = entry.runtime_data.data.identity.may(CAP_CONFIGURE)
-    schluessel = "push_missing" if darf_einrichten else "push_needs_operator"
+    ⚠️ **Wer es abgestellt hat, bekommt keine Meldung.** Ein Hinweis auf
+    etwas, das jemand gerade absichtlich ausgeschaltet hat, ist keine Hilfe,
+    sondern eine Meldung, die man wegklickt und die wiederkommt.
 
-    # Beide Kennungen aufräumen: Wer den Schlüssel wechselt, soll nicht die
+    ⚠️ **Zwei Ursachen, zwei Saetze.** Ein Nexview vor 0.31 kennt die Adresse
+    dafuer noch nicht; ein neueres kennt sie und erreicht dieses Home
+    Assistant trotzdem nicht. Wer im zweiten Fall nach der Nexview-Version
+    sucht, sucht am falschen Ort.
+    """
+    schluessel = "push_too_old" if zu_alt else "push_missing"
+
+    # Beide Kennungen aufräumen: Wer Nexview aktualisiert, soll nicht die
     # Meldung der alten Ursache behalten.
-    for kennung in ("push_missing", "push_needs_operator"):
-        if pushing or kennung != schluessel:
+    for kennung in ("push_missing", "push_too_old", "push_needs_operator"):
+        if pushing or not gewuenscht or kennung != schluessel:
             ir.async_delete_issue(hass, DOMAIN, f"{kennung}_{entry.entry_id}")
-    if pushing:
+    if pushing or not gewuenscht:
         return
 
     ir.async_create_issue(

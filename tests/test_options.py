@@ -17,7 +17,7 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
-from custom_components.nexview.const import CONF_ACCOUNTS, DOMAIN
+from custom_components.nexview.const import CONF_ACCOUNTS, CONF_PUSH, DOMAIN
 
 from .conftest import ABOUT, IDENTITY_USER, MY_STORAGE, QUOTA, URL, setup_entry
 
@@ -66,15 +66,23 @@ class TestPickingAccounts:
             "sensor", DOMAIN, f"{entry.entry_id}_account7_movie_quota_used"
         ), "The account was picked and its entities did not appear."
 
-    async def test_a_personal_key_is_told_there_is_nothing_to_pick(
+    async def test_a_personal_key_sees_no_accounts_but_still_gets_the_switch(
         self,
         hass: HomeAssistant,
         entry: MockConfigEntry,
         aioclient_mock: AiohttpClientMocker,
     ) -> None:
-        """An empty list with no explanation is the worst of both."""
+        """⚠️ Diese Form brach frueher ab, und zwar fuer die Falschen.
+
+        Wer Nexview nicht verwalten darf, sieht keine fremden Konten - eine
+        leere Liste ohne Erklaerung waere schlechter als keine Liste. Der
+        Abbruch nahm damit aber ausgerechnet den Leuten jede Einstellung weg,
+        die den Rueckkanal am ehesten abschalten muessen: Wenn Nexview ihr Home
+        Assistant nicht erreicht, ist der Haken ihr einziger Weg, die
+        Reparaturmeldung loszuwerden.
+        """
         aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_USER)
-        aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
+        aioclient_mock.get(f"{URL}/api/v1/me/push", json={"eingerichtet": False})
         aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
         aioclient_mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
         aioclient_mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
@@ -86,8 +94,13 @@ class TestPickingAccounts:
         await setup_entry(hass, entry)
 
         result = await hass.config_entries.options.async_init(entry.entry_id)
-        assert result["type"] is FlowResultType.ABORT
-        assert result["reason"] == "no_accounts_visible"
+
+        assert result["type"] is FlowResultType.FORM
+        felder = {str(k.schema) for k in result["data_schema"].schema}
+        assert felder == {CONF_PUSH}, (
+            "Ein persoenlicher Schluessel soll den Rueckkanal-Haken sehen und "
+            f"sonst nichts, bekam aber: {sorted(felder)}"
+        )
 
     async def test_unpicking_takes_the_entities_away_again(
         self, hass: HomeAssistant, nexview: AiohttpClientMocker

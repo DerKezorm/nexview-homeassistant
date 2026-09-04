@@ -446,11 +446,26 @@ class NexviewClient:
     # steps, and all four are ours to take - nobody should have to copy a code
     # between two browser tabs.
 
-    async def webhook_targets(self) -> list[dict[str, Any]]:
-        return await self._call("GET", "/api/settings/channels/webhook/targets") or []
+    # --- The way back, as of Nexview 0.31 ---------------------------------
+    #
+    # ⚠️ **One address instead of four, and it belongs to this key.** Before
+    # 0.31 an integration had to register a house-wide notification target,
+    # which meant three things at once: it needed an operator key (a personal
+    # one was refused outright), it appeared in a settings page where nobody
+    # could tell what it was, and it received every notification in the house
+    # rather than the ones concerning its owner.
+    #
+    # ``/api/v1/me/push`` replaces all of that. It registers exactly one target
+    # per key, it is invisible in the channel settings because it is not
+    # something anyone configures there, and it carries only what its owner
+    # would also see in their Nexview notification bell.
 
-    async def webhook_test(self, name: str, url: str, language: str = "en") -> None:
-        """Ask Nexview to send its test message - which is how we learn the code.
+    async def push_state(self) -> dict[str, Any]:
+        """What Nexview has on file for this key."""
+        return dict(await self._call("GET", "/api/v1/me/push") or {})
+
+    async def push_register(self, name: str, url: str, language: str = "en") -> None:
+        """Register the address and make Nexview send its test message.
 
         ⚠️ **Die Sprache gehoert dem Leser, nicht der Maschine.** Der
         Bestaetigungscode steht in einem eigenen Feld und ist sprachunabhaengig
@@ -459,40 +474,22 @@ class NexviewClient:
         Fest auf Englisch hiess: "New ticket" in einem deutschen Haushalt.
         """
         answer = await self._call(
-            "POST",
-            "/api/settings/channels/webhook/test",
-            json={"name": name, "url": url, "token": "", "language": language},
+            "PUT",
+            "/api/v1/me/push",
+            json={"name": name, "url": url, "language": language},
         )
         if not (answer or {}).get("ok"):
             raise NexviewError(
-                (answer or {}).get("message") or "Nexview could not reach us"
+                (answer or {}).get("message") or "Nexview refused the address"
             )
 
-    async def webhook_confirm(self, code: str) -> None:
-        answer = await self._call(
-            "POST", "/api/settings/channels/webhook/confirm", json={"code": code}
-        )
+    async def push_confirm(self, code: str) -> None:
+        answer = await self._call("POST", "/api/v1/me/push", json={"code": code})
         if not (answer or {}).get("ok"):
             raise NexviewError(
                 (answer or {}).get("message") or "Nexview rejected the code"
             )
 
-    async def webhook_save(
-        self, name: str, url: str, language: str = "en"
-    ) -> dict[str, Any]:
-        antwort = await self._call(
-            "POST",
-            "/api/settings/channels/webhook/targets",
-            json={"name": name, "url": url, "token": "", "language": language},
-        )
-        return dict(antwort or {})
+    async def push_remove(self) -> None:
+        await self._call("DELETE", "/api/v1/me/push")
 
-    async def webhook_events(self, target_id: int, events: dict[str, str]) -> None:
-        await self._call(
-            "PUT",
-            f"/api/settings/channels/webhook/targets/{target_id}/events",
-            json={"events": events},
-        )
-
-    async def webhook_delete(self, target_id: int) -> None:
-        await self._call("DELETE", f"/api/settings/channels/webhook/targets/{target_id}")

@@ -58,10 +58,17 @@ grey, nothing that answers 403 when pressed.
 2. In Home Assistant, add the **Nexview** integration, enter the address and
    paste the key.
 
-That is all. If your key may configure Nexview, the integration also registers
-itself as a notification target over there, so Nexview calls Home Assistant
-instead of being asked every half minute. It does that by itself, including the
-confirmation code Nexview requires - nothing to copy between two windows.
+That is all. The integration also tells Nexview where to call back, so events
+arrive the moment they happen instead of up to half a minute later. It does that
+by itself, including the confirmation code Nexview requires - nothing to copy
+between two windows.
+
+That callback belongs to your key and nobody else's. It carries exactly what you
+would also see in your Nexview notification bell: your requests, your tickets,
+your storage. Somebody else in the same house who adds this integration to their
+own Home Assistant gets their own, and neither sees the other's. You can see the
+address in Nexview under **Access keys**, next to the key that registered it, and
+switch it off there or in the integration's options.
 
 If Nexview cannot reach Home Assistant, everything still works, just slower,
 and a repair notice says so rather than leaving you to wonder why events are
@@ -172,17 +179,15 @@ it, and unregisters the webhook.
 
 ## Known limitations
 
-- **The push needs a key that may configure Nexview.** Notification targets are
-  an administrator's business over there, so a personal key cannot register one
-  and its events never arrive - the figures still do, and a repair notice
-  explains which of the two problems it is. In a household where everybody runs
-  their own Home Assistant, this is the thing that is still missing: Nexview
-  would have to learn per-person targets, so that each installation receives
-  what concerns that person rather than everything the house does.
-- **Nexview sends its notifications in one language per target**, and the
+- **The callback needs Nexview 0.31.** Older versions only knew house-wide
+  notification targets, which an ordinary account could not register at all -
+  and which would have delivered every notification in the house rather than
+  yours. The figures work against 0.30, events do not, and a repair notice says
+  which of the two problems you have.
+- **Nexview sends its notifications in one language per callback**, and the
   integration asks for the one this Home Assistant is set to. Change the
-  language of Home Assistant and existing targets keep the old one until the
-  entry is set up again.
+  language of Home Assistant and the callback keeps the old one until the entry
+  is set up again.
 
 - **Child profiles do not appear.** Nexview knows child accounts as
   sub-profiles of their parents, and their names and wishes deliberately stay

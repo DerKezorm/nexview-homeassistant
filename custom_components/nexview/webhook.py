@@ -1,16 +1,19 @@
 """The way back: Nexview calls us instead of us asking.
 
-Nexview already ships a generic webhook channel, and its own source names Home
-Assistant as the first case it was built for. Nothing had to be invented here;
-the work is in setting it up without making anyone copy a code between two
-browser tabs.
+**Two steps.** Nexview refuses to deliver to an address that has not proven
+itself: it sends a test message carrying a four digit code, and only a caller
+who reads that code back gets switched on. That is a good rule - an HTTP 200
+from a push service means "accepted", not "arrived" - and it works as well for
+a machine as for a person, because the payload carries the code in its own
+``code`` field instead of only inside a translated sentence.
 
-**How the four steps fit together.** Nexview refuses to save a target that has
-not proven itself: it sends a test message carrying a four digit code, and only
-a caller who can read that code back may save. That is a good rule - an HTTP
-200 from a push service means "accepted", not "arrived" - and it works just as
-well for a machine as for a person, as long as the machine can find the code.
-It can: the payload carries it in its own ``code`` field.
+⚠️ **This address belongs to one key, and it is nobody else's business.**
+Nexview keeps two kinds of notification target apart. A house-wide one is a
+shared mailbox an operator sets up, and its messages are announcements: they
+name the title and never the person. The one registered here has an owner, and
+it carries exactly what that owner also sees in their Nexview notification bell
+- "your title is ready", not "a title is ready". Nothing about anybody else
+reaches it, which is why a personal key may register one at all.
 
 ⚠️ **The webhook only accepts calls from the local network.** Nexview stands
 next to Home Assistant, so nothing has to be reachable from the internet - no
@@ -28,14 +31,13 @@ from homeassistant.components import webhook
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .api import NexviewError
+from .api import NexviewError, NexviewNotFoundError
 from .const import (
     CONF_WEBHOOK_ID,
     DOMAIN,
     EVENT_OPERATIONS,
     EVENT_ROUTING,
     TARGET_PREFIX,
-    WEBHOOK_EVENTS,
 )
 from .coordinator import NexviewConfigEntry
 
@@ -58,6 +60,13 @@ class NexviewWebhook:
     def __init__(self, hass: HomeAssistant, entry: NexviewConfigEntry) -> None:
         self.hass = hass
         self.entry = entry
+        #: Kennt dieses Nexview die Adresse fuer Rueckkanaele ueberhaupt?
+        #:
+        #: ⚠️ Der Grund wird gemerkt, nicht aus der Version geraten. Eine
+        #: Versionsnummer sagt, was eingebaut sein *sollte*; ein 404 sagt, was
+        #: wirklich antwortet - und nur der zweite stimmt auch hinter einem
+        #: Proxy, der Pfade filtert.
+        self.zu_alt = False
         self.webhook_id: str = entry.data[CONF_WEBHOOK_ID]
         self._awaiting_code: asyncio.Future[str] | None = None
 
@@ -158,27 +167,34 @@ class NexviewWebhook:
     async def async_ensure_target(self) -> bool:
         """Make sure Nexview knows this address. Returns whether it does.
 
-        Never touches a target that already points at us, and never touches
-        anybody else's. Rewriting a working configuration on every restart is
-        how an integration quietly undoes what a person set by hand.
+        Never re-registers an address that already works. Rewriting a working
+        configuration on every restart is how an integration quietly undoes
+        what somebody set by hand - and here it would also mean a fresh
+        confirmation code on every reboot.
         """
         client = self.entry.runtime_data.client
         url = self.url
         name = f"{TARGET_PREFIX} ({self.hass.config.location_name})"
 
+        self.zu_alt = False
         try:
-            existing = await client.webhook_targets()
+            stand = await client.push_state()
+        except NexviewNotFoundError:
+            self.zu_alt = True
+            # An older Nexview. Nothing to fall back to: before 0.31 only an
+            # operator could register a target at all, and it would then have
+            # received every notification in the house instead of this
+            # person's. The repair issue says so in as many words.
+            _LOGGER.info(
+                "This Nexview does not offer a callback address yet (needs 0.31)"
+            )
+            return False
         except NexviewError as err:
-            _LOGGER.debug("Could not read Nexview's notification targets: %s", err)
+            _LOGGER.debug("Could not ask Nexview about the way back: %s", err)
             return False
 
-        for target in existing:
-            if target.get("url") == url:
-                if target.get("verified"):
-                    return True
-                # Ours, but never proven - Nexview will not deliver to it.
-                # Setting it up again is the only way out.
-                break
+        if stand.get("bestaetigt") and stand.get("url") == url:
+            return True
 
         try:
             return await self._enrol(name, url)
@@ -186,12 +202,27 @@ class NexviewWebhook:
             _LOGGER.info("Nexview could not be told about this address: %s", err)
             return False
 
-    async def _enrol(self, name: str, url: str) -> bool:
-        """Test message, catch the code, confirm, save, subscribe."""
-        self._awaiting_code = self.hass.loop.create_future()
-        sprache = self._sprache()
+    async def async_forget_target(self) -> None:
+        """Nexview soll uns nicht mehr anrufen.
+
+        ⚠️ **Ohne das bliebe ein abgeschalteter Haken folgenlos.** Nexview
+        funkte weiter an eine Adresse, die niemand mehr hoeren will, und der
+        Postausgang sammelte Fehlversuche, sobald dieses Home Assistant einmal
+        nicht laeuft. Ein Fehler beim Aufraeumen wird nur notiert: Wer den
+        Haken ausmacht, soll nicht an einem unerreichbaren Nexview haengen
+        bleiben.
+        """
         try:
-            await self.entry.runtime_data.client.webhook_test(name, url, sprache)
+            await self.entry.runtime_data.client.push_remove()
+        except NexviewError as err:
+            _LOGGER.debug("Could not withdraw the callback address: %s", err)
+
+    async def _enrol(self, name: str, url: str) -> bool:
+        """Register, catch the code from the test message, confirm."""
+        client = self.entry.runtime_data.client
+        self._awaiting_code = self.hass.loop.create_future()
+        try:
+            await client.push_register(name, url, self._sprache())
             try:
                 code = await asyncio.wait_for(self._awaiting_code, CODE_TIMEOUT)
             except TimeoutError:
@@ -204,13 +235,6 @@ class NexviewWebhook:
         finally:
             self._awaiting_code = None
 
-        client = self.entry.runtime_data.client
-        await client.webhook_confirm(code)
-        target = await client.webhook_save(name, url, sprache)
-
-        target_id = target.get("id")
-        if target_id is not None:
-            await client.webhook_events(int(target_id), WEBHOOK_EVENTS)
-
+        await client.push_confirm(code)
         _LOGGER.debug("Nexview now calls %s", url)
         return True

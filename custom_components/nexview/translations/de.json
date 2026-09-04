@@ -405,11 +405,11 @@
   "issues": {
     "push_missing": {
       "title": "Nexview erreicht Home Assistant nicht",
-      "description": "{name} ist verbunden und die Zahlen stimmen, aber Nexview kann nicht zurückrufen. Ereignisse kommen deshalb spät oder gar nicht, und Home Assistant fragt stattdessen alle 30 Sekunden nach.\n\nNexview muss {url} erreichen können. Wenn es das kann, trag die Adresse in Nexview von Hand ein unter Einstellungen, Benachrichtigungen, Webhook, und bestätige sie mit dem Code aus der Testnachricht."
+      "description": "{name} ist verbunden und die Zahlen stimmen, aber Nexview kann nicht zurückrufen. Ereignisse kommen deshalb spät oder gar nicht, und Home Assistant fragt stattdessen alle 30 Sekunden nach.\n\nNexview muss {url} erreichen können. Meistens liegt es daran, dass Nexview in einem anderen Netz steht als dieses Home Assistant, oder dass eine Firewall dazwischen ist.\n\nWenn das so bleiben soll: In den Einstellungen dieser Integration den Rückkanal abschalten, dann verschwindet dieser Hinweis."
     },
-    "push_needs_operator": {
-      "title": "Nexview kann dieses Home Assistant nicht benachrichtigen",
-      "description": "{name} ist verbunden und die Zahlen stimmen, aber der verwendete Schlüssel darf in Nexview keine Benachrichtigungsziele anlegen - das ist dort Verwaltungssache. Ereignisse kommen deshalb nur, wenn Home Assistant nachfragt, also alle 30 Sekunden.\\n\\nZwei Wege: einen Schlüssel eines Kontos nehmen, das Nexview einrichten darf, oder diese Adresse in Nexview von Hand eintragen unter Einstellungen, Benachrichtigungen, Webhook, und mit dem Code aus der Testnachricht bestätigen:\\n\\n{url}"
+    "push_too_old": {
+      "title": "Dieses Nexview kann Home Assistant noch nicht benachrichtigen",
+      "description": "{name} ist verbunden und die Zahlen stimmen, aber Rückkanäle gibt es in Nexview erst ab 0.31. Ereignisse kommen deshalb nur, wenn Home Assistant nachfragt, also alle 30 Sekunden.\\n\\nNexview aktualisieren, oder den Rückkanal in den Einstellungen der Integration abschalten, damit dieser Hinweis verschwindet."
     }
   },
   "options": {
@@ -418,7 +418,11 @@
         "title": "Welche Konten eigene Entitäten bekommen",
         "description": "Von Haus aus zeigt Nexview nur die Summen für das ganze Haus. Wer hier Konten auswählt, bekommt deren Kontingente als eigene Entitäten. Jedes Konto bringt sieben mit, bei einer großen Installation lohnt sich eine Auswahl.",
         "data": {
-          "accounts": "Konten"
+          "accounts": "Konten mit eigenem Gerät",
+          "push": "Nexview darf dieses Home Assistant benachrichtigen"
+        },
+        "data_description": {
+          "push": "Nexview ruft dieses Home Assistant an, sobald etwas passiert, statt alle 30 Sekunden gefragt zu werden. Ausschalten, wenn Nexview diese Adresse nicht erreicht - die Zahlen kommen so oder so."
         }
       }
     },

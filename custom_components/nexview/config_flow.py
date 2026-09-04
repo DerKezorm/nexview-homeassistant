@@ -45,7 +45,14 @@ from .api import (
     NexviewError,
     NexviewTooOldError,
 )
-from .const import CONF_ACCOUNTS, CONF_KEY, CONF_URL, CONF_WEBHOOK_ID, DOMAIN
+from .const import (
+    CONF_ACCOUNTS,
+    CONF_KEY,
+    CONF_PUSH,
+    CONF_URL,
+    CONF_WEBHOOK_ID,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -225,12 +232,17 @@ class NexviewConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class NexviewOptionsFlow(OptionsFlowWithReload):
-    """Which accounts get entities of their own.
+    """Whether Nexview calls back, and which accounts get entities of their own.
 
-    ⚠️ **Off by default, and it stays that way.** A house with thirty accounts
-    would otherwise be handed a hundred and twenty entities by an integration
-    it just installed, and every new Nexview account would quietly add four
-    more. The house figures are there without picking anybody.
+    ⚠️ **Extra accounts are off by default, and that stays.** A house with
+    thirty accounts would otherwise be handed a hundred and twenty entities by
+    an integration it just installed, and every new Nexview account would
+    quietly add four more. The house figures are there without picking anybody.
+
+    ⚠️ **The callback is on by default, and it is the only option a personal
+    key has.** Before, this form aborted outright for anyone who could not
+    administer Nexview - which meant the people most likely to need the
+    callback switch could not reach it.
     """
 
     async def async_step_init(
@@ -240,41 +252,39 @@ class NexviewOptionsFlow(OptionsFlowWithReload):
             return self.async_create_entry(data=user_input)
 
         coordinator = self.config_entry.runtime_data
-        if not coordinator.data.identity.may(CAP_ADMINISTER):
-            # A personal key sees no other accounts, so there is nothing to
-            # choose. Saying so beats an empty list with no explanation.
-            return self.async_abort(reason="no_accounts_visible")
+        felder: dict[Any, Any] = {
+            vol.Required(
+                CONF_PUSH,
+                default=self.config_entry.options.get(CONF_PUSH, True),
+            ): bool
+        }
 
-        try:
-            accounts = await coordinator.client.accounts()
-        except NexviewError:
-            return self.async_abort(reason="cannot_connect")
-
-        if not accounts:
-            return self.async_abort(reason="no_accounts_visible")
-
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
+        # Fremde Konten sieht nur, wer Nexview verwalten darf. Fuer alle
+        # anderen bleibt der Haken oben allein stehen - eine leere Liste ohne
+        # Erklaerung waere schlechter als keine Liste.
+        if coordinator.data.identity.may(CAP_ADMINISTER):
+            try:
+                accounts = await coordinator.client.accounts()
+            except NexviewError:
+                accounts = []
+            if accounts:
+                felder[
                     vol.Optional(
                         CONF_ACCOUNTS,
                         default=self.config_entry.options.get(CONF_ACCOUNTS, []),
-                    ): SelectSelector(
-                        SelectSelectorConfig(
-                            options=[
-                                SelectOptionDict(
-                                    value=str(a.user_id), label=a.name
-                                )
-                                for a in sorted(accounts, key=lambda a: a.name.lower())
-                            ],
-                            multiple=True,
-                            mode=SelectSelectorMode.LIST,
-                        )
                     )
-                }
-            ),
-        )
+                ] = SelectSelector(
+                    SelectSelectorConfig(
+                        options=[
+                            SelectOptionDict(value=str(a.user_id), label=a.name)
+                            for a in sorted(accounts, key=lambda a: a.name.lower())
+                        ],
+                        multiple=True,
+                        mode=SelectSelectorMode.LIST,
+                    )
+                )
+
+        return self.async_show_form(step_id="init", data_schema=vol.Schema(felder))
 
 
 def _tidy_url(raw: str) -> str:

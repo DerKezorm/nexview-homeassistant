@@ -159,21 +159,14 @@ class TestSettingItselfUp:
             # Nexview calls us while its own request is still open.
             await _call_webhook(hass_client_no_auth, _payload("test", code="4711"))
 
-        nexview.post(
-            f"{URL}/api/settings/channels/webhook/targets",
-            json={"id": 12, "verified": True},
-        )
-        nexview.put(
-            f"{URL}/api/settings/channels/webhook/targets/12/events", json={}
-        )
 
         with (
             patch(
-                "custom_components.nexview.api.NexviewClient.webhook_test",
+                "custom_components.nexview.api.NexviewClient.push_register",
                 AsyncMock(side_effect=send_test_message),
             ),
             patch(
-                "custom_components.nexview.api.NexviewClient.webhook_confirm",
+                "custom_components.nexview.api.NexviewClient.push_confirm",
                 AsyncMock(side_effect=lambda code: confirmed.append(code)),
             ),
         ):
@@ -201,19 +194,14 @@ class TestSettingItselfUp:
         ) -> None:
             await _call_webhook(hass_client_no_auth, _payload("test", code="1234"))
 
-        nexview.post(
-            f"{URL}/api/settings/channels/webhook/targets",
-            json={"id": 12, "verified": True},
-        )
-        nexview.put(f"{URL}/api/settings/channels/webhook/targets/12/events", json={})
 
         with (
             patch(
-                "custom_components.nexview.api.NexviewClient.webhook_test",
+                "custom_components.nexview.api.NexviewClient.push_register",
                 AsyncMock(side_effect=send_test_message),
             ),
             patch(
-                "custom_components.nexview.api.NexviewClient.webhook_confirm",
+                "custom_components.nexview.api.NexviewClient.push_confirm",
                 AsyncMock(),
             ),
         ):
@@ -242,8 +230,8 @@ class TestSettingItselfUp:
             f"{URL}/api/v1/admin/requests/pending/count", json={"pending": 4}
         )
         aioclient_mock.get(
-            f"{URL}/api/settings/channels/webhook/targets",
-            json=[{"id": 3, "url": known_url, "verified": True}],
+            f"{URL}/api/v1/me/push",
+            json={"eingerichtet": True, "bestaetigt": True, "url": known_url},
         )
 
         with (
@@ -253,7 +241,7 @@ class TestSettingItselfUp:
                 return_value=known_url,
             ),
             patch(
-                "custom_components.nexview.api.NexviewClient.webhook_test", AsyncMock()
+                "custom_components.nexview.api.NexviewClient.push_register", AsyncMock()
             ) as sent,
         ):
             await setup_entry(hass, entry)
@@ -283,30 +271,20 @@ class TestTheLanguage:
             gefragt.append(language)
             await _call_webhook(hass_client_no_auth, _payload("test", code="4711"))
 
-        nexview.post(
-            f"{URL}/api/settings/channels/webhook/targets",
-            json={"id": 12, "verified": True},
-        )
-        nexview.put(f"{URL}/api/settings/channels/webhook/targets/12/events", json={})
 
         with (
             patch(
-                "custom_components.nexview.api.NexviewClient.webhook_test",
+                "custom_components.nexview.api.NexviewClient.push_register",
                 AsyncMock(side_effect=testnachricht),
             ),
             patch(
-                "custom_components.nexview.api.NexviewClient.webhook_confirm",
+                "custom_components.nexview.api.NexviewClient.push_confirm",
                 AsyncMock(),
             ),
-            patch(
-                "custom_components.nexview.api.NexviewClient.webhook_save",
-                AsyncMock(return_value={"id": 12}),
-            ) as gespeichert,
         ):
             await setup_entry(hass, entry)
 
         assert gefragt == ["de"], "Nexview wurde nicht in der Sprache dieser Instanz gefragt."
-        assert gespeichert.await_args.args[2] == "de"
 
     async def test_anything_that_is_not_german_gets_english(
         self,
@@ -325,16 +303,12 @@ class TestTheLanguage:
 
         with (
             patch(
-                "custom_components.nexview.api.NexviewClient.webhook_test",
+                "custom_components.nexview.api.NexviewClient.push_register",
                 AsyncMock(side_effect=testnachricht),
             ),
             patch(
-                "custom_components.nexview.api.NexviewClient.webhook_confirm",
+                "custom_components.nexview.api.NexviewClient.push_confirm",
                 AsyncMock(),
-            ),
-            patch(
-                "custom_components.nexview.api.NexviewClient.webhook_save",
-                AsyncMock(return_value={"id": 12}),
             ),
         ):
             await setup_entry(hass, entry)
@@ -356,7 +330,7 @@ class TestWhenNexviewCannotReachUs:
         with patch(
             "custom_components.nexview.webhook.CODE_TIMEOUT", 0.05
         ), patch(
-            "custom_components.nexview.api.NexviewClient.webhook_test",
+            "custom_components.nexview.api.NexviewClient.push_register",
             AsyncMock(),  # says it sent something; nothing ever arrives
         ):
             await setup_entry(hass, entry)
@@ -367,3 +341,112 @@ class TestWhenNexviewCannotReachUs:
         assert entry.runtime_data.update_interval == POLL_IDLE, (
             "Without the way back it has to ask often enough to stay useful."
         )
+
+class TestTheSwitch:
+    """Der Haken in den Optionen: Nexview darf anrufen, oder eben nicht.
+
+    ⚠️ **Er steht nicht im Einrichtungsassistenten, und das ist Absicht.** Wer
+    die Integration einrichtet, hat noch keine Vorstellung davon, was ein
+    Rueckkanal ist; eine Frage, die man nicht beantworten kann, macht den
+    Einstieg schlechter. Gebraucht wird er hinterher - naemlich dann, wenn
+    Nexview dieses Home Assistant nicht erreicht und die Reparaturmeldung bei
+    jedem Neustart wiederkommt.
+    """
+
+    async def test_off_means_nexview_is_asked_to_forget_us(
+        self, hass: HomeAssistant, nexview: AiohttpClientMocker
+    ) -> None:
+        from custom_components.nexview.const import CONF_PUSH
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            unique_id=f"{URL}::1",
+            data={"url": URL, "api_key": "nxv_" + "t" * 40, "webhook_id": WEBHOOK_ID},
+            options={CONF_PUSH: False},
+        )
+
+        with (
+            patch(
+                "custom_components.nexview.api.NexviewClient.push_register",
+                AsyncMock(),
+            ) as angemeldet,
+            patch(
+                "custom_components.nexview.api.NexviewClient.push_remove",
+                AsyncMock(),
+            ) as vergessen,
+        ):
+            await setup_entry(hass, entry)
+
+        assert angemeldet.call_count == 0, "Es hat sich trotzdem angemeldet."
+        assert vergessen.call_count == 1, (
+            "Ohne das Abmelden funkte Nexview weiter an eine Adresse, die "
+            "niemand mehr hoeren will."
+        )
+        assert entry.runtime_data.pushing is False
+
+    async def test_off_also_silences_the_repair_notice(
+        self, hass: HomeAssistant, nexview: AiohttpClientMocker
+    ) -> None:
+        """Ein Hinweis auf etwas, das jemand gerade abgeschaltet hat, ist keiner."""
+        from custom_components.nexview.const import CONF_PUSH
+
+        entry = MockConfigEntry(
+            domain=DOMAIN,
+            unique_id=f"{URL}::1",
+            data={"url": URL, "api_key": "nxv_" + "t" * 40, "webhook_id": WEBHOOK_ID},
+            options={CONF_PUSH: False},
+        )
+
+        with patch(
+            "custom_components.nexview.api.NexviewClient.push_remove", AsyncMock()
+        ):
+            await setup_entry(hass, entry)
+
+        issues = ir.async_get(hass)
+        for kennung in ("push_missing", "push_too_old"):
+            assert (
+                issues.async_get_issue(DOMAIN, f"{kennung}_{entry.entry_id}") is None
+            ), f"{kennung} steht, obwohl der Rueckkanal abgeschaltet ist."
+
+    async def test_an_older_nexview_gets_its_own_sentence(
+        self, hass: HomeAssistant, entry: MockConfigEntry, aioclient_mock
+    ) -> None:
+        """⚠️ Zwei Ursachen, zwei Meldungen.
+
+        Ein Nexview vor 0.31 kennt die Adresse dafuer nicht. Wer in diesem Fall
+        die Meldung "Nexview erreicht dieses Home Assistant nicht" bekaeme,
+        suchte am falschen Ort - naemlich im Netzwerk statt im Update.
+        """
+        from .conftest import ABOUT, IDENTITY_ADMIN, MY_STORAGE, QUOTA, TILE
+
+        aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_ADMIN)
+        aioclient_mock.get(f"{URL}/api/v1/dashboard", json=TILE)
+        aioclient_mock.get(
+            f"{URL}/api/v1/admin/requests/pending/count", json={"pending": 0}
+        )
+        # Ein aelteres Nexview kennt diese Adresse nicht.
+        aioclient_mock.get(f"{URL}/api/v1/me/push", status=404)
+        aioclient_mock.get(f"{URL}/api/admin/analyse", json={})
+        aioclient_mock.get(f"{URL}/api/admin/analyse/laufend", json={})
+        aioclient_mock.get(f"{URL}/api/admin/stats", json={})
+        aioclient_mock.get(f"{URL}/api/admin/requests", json=[])
+        aioclient_mock.get(f"{URL}/api/calendar", json={"days": []})
+        aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
+        aioclient_mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
+        aioclient_mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
+        aioclient_mock.get(
+            f"{URL}/api/v1/notifications/unread/count", json={"unread": 0}
+        )
+        aioclient_mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
+        aioclient_mock.get(
+            f"{URL}/api/settings/qualitaetsprofile/medienserver",
+            json={"server": [], "instanzen": [], "warnungen": []},
+        )
+
+        await setup_entry(hass, entry)
+
+        issues = ir.async_get(hass)
+        assert issues.async_get_issue(DOMAIN, f"push_too_old_{entry.entry_id}")
+        assert (
+            issues.async_get_issue(DOMAIN, f"push_missing_{entry.entry_id}") is None
+        ), "Beide Meldungen zugleich waeren zwei Erklaerungen fuer eine Ursache."

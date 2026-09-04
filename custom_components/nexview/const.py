@@ -26,9 +26,19 @@ CONF_WEBHOOK_ID: Final = "webhook_id"
 #: Nexview account would quietly add four more.
 CONF_ACCOUNTS: Final = "accounts"
 
-#: How this Home Assistant appears in Nexview's list of notification targets.
-#: Recognisable on sight, because a person will eventually have to decide which
-#: of several entries may be revoked.
+#: Soll Nexview dieses Home Assistant anrufen?
+#:
+#: ⚠️ **An per Vorgabe, und im Einrichtungsassistenten steht er nicht.** Wer
+#: die Integration einrichtet, hat noch keine Vorstellung davon, was ein
+#: Rueckkanal ist; eine Frage, die man nicht beantworten kann, macht den
+#: Einstieg schlechter. Gebraucht wird der Haken genau dann, wenn Nexview
+#: dieses Home Assistant nicht erreichen kann und jemand die Reparaturmeldung
+#: loswerden will, ohne dass sie bei jedem Neustart wiederkommt.
+CONF_PUSH: Final = "push"
+
+#: How this Home Assistant appears in Nexview, next to the key that registered
+#: it. Recognisable on sight, because a person will eventually have to decide
+#: which of several entries may be disconnected.
 TARGET_PREFIX: Final = "Home Assistant"
 
 #: How often we ask when nothing pushes to us. Half a minute is what makes a
@@ -40,21 +50,6 @@ POLL_IDLE: Final = timedelta(seconds=30)
 #: next event happens to arrive.
 POLL_PUSHED: Final = timedelta(minutes=5)
 
-#: Which of Nexview's notification groups we subscribe to, and at which
-#: urgency. Nexview stores the urgency per hook; for us it only decides how
-#: prominent its own delivery is, so everything that needs a person gets
-#: ``high`` and the rest stays ``normal``.
-WEBHOOK_EVENTS: Final[dict[str, str]] = {
-    "request_pending": "high",
-    "request_decided": "normal",
-    "request_cancelled": "normal",
-    "download_complete": "normal",
-    "ticket_new": "normal",
-    "feedback": "normal",
-    "user_imported": "normal",
-    "storage_release": "normal",
-    "instance_health": "high",
-}
 
 #: Nexview's notification types, sorted into the three event entities. The keys
 #: are what arrives in the ``event`` field of the payload.

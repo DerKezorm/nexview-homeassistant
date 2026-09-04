@@ -283,7 +283,7 @@ def nexview(aioclient_mock: AiohttpClientMocker) -> AiohttpClientMocker:
     aioclient_mock.get(
         f"{URL}/api/v1/admin/requests/pending/count", json={"pending": 4}
     )
-    aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
+    aioclient_mock.get(f"{URL}/api/v1/me/push", json={"eingerichtet": False})
     aioclient_mock.get(f"{URL}/api/admin/analyse", json=ANALYSIS)
     aioclient_mock.get(
         f"{URL}/api/settings/qualitaetsprofile/medienserver", json=SERVERS

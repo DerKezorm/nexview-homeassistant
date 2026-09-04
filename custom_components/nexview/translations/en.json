@@ -405,11 +405,11 @@
   "issues": {
     "push_missing": {
       "title": "Nexview cannot reach Home Assistant",
-      "description": "{name} is connected and its figures are up to date, but Nexview cannot call back, so events arrive late or not at all. Home Assistant is asking every 30 seconds instead.\n\nNexview has to be able to reach {url}. If it can, add that address by hand in Nexview under Settings, Notifications, Webhook, and confirm it with the code from the test message."
+      "description": "{name} is connected and its figures are up to date, but Nexview cannot call back. Events therefore arrive late or not at all, and Home Assistant asks every 30 seconds instead.\n\nNexview has to be able to reach {url}. Usually this means Nexview sits on a different network than this Home Assistant, or a firewall is in between.\n\nIf that is how it has to stay, turn the callback off in this integration's options and this notice will go away."
     },
-    "push_needs_operator": {
-      "title": "Nexview cannot notify this Home Assistant",
-      "description": "{name} is connected and its figures are up to date, but the key it uses may not add notification targets in Nexview - that is an administrator's business over there. Events therefore arrive only when Home Assistant asks, every 30 seconds.\\n\\nTwo ways out: use a key from an account that may configure Nexview, or add this address by hand in Nexview under Settings, Notifications, Webhook and confirm it with the code from the test message:\\n\\n{url}"
+    "push_too_old": {
+      "title": "This Nexview cannot notify Home Assistant yet",
+      "description": "{name} is connected and its figures are up to date, but callback addresses arrived in Nexview 0.31. Events therefore only appear when Home Assistant asks, every 30 seconds.\\n\\nUpdate Nexview, or switch the callback off in the integration options to stop this notice."
     }
   },
   "options": {
@@ -418,7 +418,11 @@
         "title": "Which accounts get their own entities",
         "description": "By default Nexview shows only the totals for the house. Pick accounts here to get their allowances as entities of their own. Each account adds seven, so a large installation is better off picking a few.",
         "data": {
-          "accounts": "Accounts"
+          "accounts": "Accounts with their own device",
+          "push": "Let Nexview notify this Home Assistant"
+        },
+        "data_description": {
+          "push": "Nexview calls this Home Assistant the moment something happens, instead of being asked every 30 seconds. Turn it off if Nexview cannot reach this address - the figures keep working either way."
         }
       }
     },
