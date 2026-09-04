@@ -50,10 +50,64 @@ class TestMediaServers:
             (DOMAIN, f"{entry.entry_id}_server1"), entry.entry_id
         )
         assert plex is not None
-        assert plex.name == "Wohnzimmer"
-        # ⚠️ Der Hersteller ist Plex, nicht nexapps. Der Server gehört dem,
-        # der ihn betreibt; Nexview redet nur mit ihm.
+        # ⚠️ **Der Anbieter ist der Name.** In der Kulisse heisst dieser Plex
+        # "Wohnzimmer", eine echte Installation nennt ihn nach dem Wohnzimmer,
+        # dem Hund oder gar nicht - Emby im Container heisst schlicht nach
+        # seiner Kennung. Wer in einer Geräteliste sucht, sucht nach Plex.
+        assert plex.name == "Plex Server"
+        assert plex.model == "Wohnzimmer", "Der eigene Name gehört ins Modell."
         assert plex.manufacturer == "Plex"
+
+    async def test_two_of_the_same_kind_keep_their_names(
+        self, hass: HomeAssistant, entry: MockConfigEntry, aioclient_mock
+    ) -> None:
+        """⚠️ Zwei Geräte namens Plex wären schlimmer als ein krummer Name.
+
+        Erst wenn derselbe Anbieter mehrfach vorkommt, kommt der eigene Name
+        dazu - dann trägt er nämlich etwas.
+        """
+        from .conftest import (
+            ABOUT,
+            ANALYSIS,
+            IDENTITY_ADMIN,
+            PLAYING,
+            STATS,
+            TILE,
+        )
+
+        aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_ADMIN)
+        aioclient_mock.get(f"{URL}/api/v1/dashboard", json=TILE)
+        aioclient_mock.get(
+            f"{URL}/api/v1/admin/requests/pending/count", json={"pending": 0}
+        )
+        aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
+        aioclient_mock.get(f"{URL}/api/admin/analyse", json=ANALYSIS)
+        aioclient_mock.get(f"{URL}/api/admin/analyse/laufend", json=PLAYING)
+        aioclient_mock.get(f"{URL}/api/admin/stats", json=STATS)
+        aioclient_mock.get(f"{URL}/api/calendar", json={"days": []})
+        aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
+        aioclient_mock.get(
+            f"{URL}/api/settings/qualitaetsprofile/medienserver",
+            json={
+                "server": [
+                    {"id": "1", "provider": "plex", "name": "Oben"},
+                    {"id": "9", "provider": "plex", "name": "Unten"},
+                ],
+                "instanzen": [],
+                "warnungen": [],
+            },
+        )
+
+        await setup_entry(hass, entry)
+
+        devices = dr.async_get(hass)
+        namen = {
+            devices.async_get_device_by_identifier(
+                (DOMAIN, f"{entry.entry_id}_server{kennung}"), entry.entry_id
+            ).name
+            for kennung in ("1", "9")
+        }
+        assert namen == {"Plex Server (Oben)", "Plex Server (Unten)"}
 
     async def test_it_counts_what_is_playing_and_what_is_being_converted(
         self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker

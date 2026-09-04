@@ -136,8 +136,13 @@ class NexviewServerEntity(NexviewEntity):
             identifiers={(DOMAIN, f"{entry.entry_id}_server{server_key}")},
             entry_type=DeviceEntryType.SERVICE,
             manufacturer=(server.provider.capitalize() if server else None),
-            model="Media server",
-            name=server.name if server else f"Server {server_key}",
+            # ⚠️ **Der Anbieter ist der Name, der Servername das Modell.**
+            # Ein Plex-Server heisst, wie sein Besitzer ihn genannt hat, und
+            # ein Emby im Container heisst nach seiner Kennung. In einer Liste
+            # aus zwanzig Geraeten sucht niemand nach "Bizzy" oder
+            # "fed014e636a7" - gesucht wird nach Plex.
+            model=(server.name if server else f"Server {server_key}"),
+            name=_server_name(server, server_key, coordinator),
         )
         _haenge_unter(self._attr_device_info, coordinator)
 
@@ -162,3 +167,27 @@ def _haenge_unter(info: DeviceInfo, coordinator: NexviewCoordinator) -> None:
     kennung = coordinator.main_device_id
     if kennung:
         info["via_device_id"] = kennung
+
+
+def _server_name(
+    server: MediaServer | None, server_key: str, coordinator: NexviewCoordinator
+) -> str:
+    """Wie ein Medienserver in der Geräteliste heißen soll.
+
+    Der Anbieter, weil man danach sucht. Und nur dann mit dem Servernamen
+    dahinter, wenn derselbe Anbieter mehrfach vorkommt - sonst stünden dort
+    zwei Geräte namens "Plex" und niemand wüsste, welches welches ist.
+    """
+    if server is None:
+        return f"Server {server_key}"
+
+    if not server.provider:
+        return f"Server {server_key}"
+
+    anbieter = f"{server.provider.capitalize()} Server"
+    gleiche = [
+        s for s in coordinator.data.servers.values() if s.provider == server.provider
+    ]
+    if len(gleiche) > 1 and server.name and server.name != server.provider:
+        return f"{anbieter} ({server.name})"
+    return anbieter
