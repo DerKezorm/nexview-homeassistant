@@ -144,6 +144,17 @@ class NexviewWebhook:
 
     # --- Setting ourselves up over there ----------------------------------
 
+    def _sprache(self) -> str:
+        """In welcher Sprache Nexview seine Meldungen schicken soll.
+
+        ⚠️ **Nach der Sprache dieses Home Assistant, nicht fest Englisch.**
+        Die Meldungen kommen als fertige Saetze und landen in
+        Benachrichtigungen, die ein Mensch liest. Nexview kennt genau zwei
+        Sprachen; alles, was nicht Deutsch ist, bekommt Englisch.
+        """
+        eingestellt = (self.hass.config.language or "en").lower()
+        return "de" if eingestellt.startswith("de") else "en"
+
     async def async_ensure_target(self) -> bool:
         """Make sure Nexview knows this address. Returns whether it does.
 
@@ -178,8 +189,9 @@ class NexviewWebhook:
     async def _enrol(self, name: str, url: str) -> bool:
         """Test message, catch the code, confirm, save, subscribe."""
         self._awaiting_code = self.hass.loop.create_future()
+        sprache = self._sprache()
         try:
-            await self.entry.runtime_data.client.webhook_test(name, url)
+            await self.entry.runtime_data.client.webhook_test(name, url, sprache)
             try:
                 code = await asyncio.wait_for(self._awaiting_code, CODE_TIMEOUT)
             except TimeoutError:
@@ -194,7 +206,7 @@ class NexviewWebhook:
 
         client = self.entry.runtime_data.client
         await client.webhook_confirm(code)
-        target = await client.webhook_save(name, url)
+        target = await client.webhook_save(name, url, sprache)
 
         target_id = target.get("id")
         if target_id is not None:

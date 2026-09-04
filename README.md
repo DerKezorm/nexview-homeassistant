@@ -172,12 +172,21 @@ it, and unregisters the webhook.
 
 ## Known limitations
 
+- **The push needs a key that may configure Nexview.** Notification targets are
+  an administrator's business over there, so a personal key cannot register one
+  and its events never arrive - the figures still do, and a repair notice
+  explains which of the two problems it is. In a household where everybody runs
+  their own Home Assistant, this is the thing that is still missing: Nexview
+  would have to learn per-person targets, so that each installation receives
+  what concerns that person rather than everything the house does.
+- **Nexview sends its notifications in one language per target**, and the
+  integration asks for the one this Home Assistant is set to. Change the
+  language of Home Assistant and existing targets keep the old one until the
+  entry is set up again.
+
 - **Child profiles do not appear.** Nexview knows child accounts as
   sub-profiles of their parents, and their names and wishes deliberately stay
   out of a database that records everything forever.
-- **The push needs an operator key.** Notification targets are an
-  administrator's business in Nexview, so a personal key polls instead of being
-  called. Everything else works the same.
 - **One entry per account.** The same Nexview may be added twice with two
   different keys; the same account twice is refused.
 

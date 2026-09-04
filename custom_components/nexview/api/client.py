@@ -449,13 +449,19 @@ class NexviewClient:
     async def webhook_targets(self) -> list[dict[str, Any]]:
         return await self._call("GET", "/api/settings/channels/webhook/targets") or []
 
-    async def webhook_test(self, name: str, url: str) -> None:
-        """Ask Nexview to send its test message - which is how we learn the code."""
+    async def webhook_test(self, name: str, url: str, language: str = "en") -> None:
+        """Ask Nexview to send its test message - which is how we learn the code.
+
+        ⚠️ **Die Sprache gehoert dem Leser, nicht der Maschine.** Der
+        Bestaetigungscode steht in einem eigenen Feld und ist sprachunabhaengig
+        - aber jede spaetere Meldung traegt ``title`` und ``body`` als fertigen
+        Satz, und der landet in einer Benachrichtigung, die ein Mensch liest.
+        Fest auf Englisch hiess: "New ticket" in einem deutschen Haushalt.
+        """
         answer = await self._call(
             "POST",
             "/api/settings/channels/webhook/test",
-            # English, because this message is aimed at us, not at a reader.
-            json={"name": name, "url": url, "token": "", "language": "en"},
+            json={"name": name, "url": url, "token": "", "language": language},
         )
         if not (answer or {}).get("ok"):
             raise NexviewError(
@@ -471,11 +477,13 @@ class NexviewClient:
                 (answer or {}).get("message") or "Nexview rejected the code"
             )
 
-    async def webhook_save(self, name: str, url: str) -> dict[str, Any]:
+    async def webhook_save(
+        self, name: str, url: str, language: str = "en"
+    ) -> dict[str, Any]:
         antwort = await self._call(
             "POST",
             "/api/settings/channels/webhook/targets",
-            json={"name": name, "url": url, "token": "", "language": "en"},
+            json={"name": name, "url": url, "token": "", "language": language},
         )
         return dict(antwort or {})
 

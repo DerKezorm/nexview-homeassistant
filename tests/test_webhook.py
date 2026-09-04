@@ -153,7 +153,9 @@ class TestSettingItselfUp:
         """
         confirmed: list[str] = []
 
-        async def send_test_message(name: str, url: str) -> None:
+        async def send_test_message(
+            name: str, url: str, language: str = "en"
+        ) -> None:
             # Nexview calls us while its own request is still open.
             await _call_webhook(hass_client_no_auth, _payload("test", code="4711"))
 
@@ -194,7 +196,9 @@ class TestSettingItselfUp:
     ) -> None:
         """A confirmation is a handshake, not something that happened."""
 
-        async def send_test_message(name: str, url: str) -> None:
+        async def send_test_message(
+            name: str, url: str, language: str = "en"
+        ) -> None:
             await _call_webhook(hass_client_no_auth, _payload("test", code="1234"))
 
         nexview.post(
@@ -255,6 +259,87 @@ class TestSettingItselfUp:
             await setup_entry(hass, entry)
 
         assert sent.call_count == 0, "It sent a test message for a target it already had."
+
+
+class TestTheLanguage:
+    async def test_nexview_is_asked_in_the_language_of_this_home_assistant(
+        self,
+        hass: HomeAssistant,
+        entry: MockConfigEntry,
+        nexview: AiohttpClientMocker,
+        hass_client_no_auth,
+    ) -> None:
+        """⚠️ Die Meldungen sind Saetze, keine Kennungen.
+
+        Der Bestaetigungscode steht in einem eigenen Feld und braucht keine
+        Sprache. Alles danach traegt ``title`` und ``body`` als fertigen Text,
+        und der landet in einer Benachrichtigung, die jemand liest. Fest auf
+        Englisch hiess: "New ticket" in einem deutschen Haushalt.
+        """
+        hass.config.language = "de"
+        gefragt: list[str] = []
+
+        async def testnachricht(name: str, url: str, language: str = "en") -> None:
+            gefragt.append(language)
+            await _call_webhook(hass_client_no_auth, _payload("test", code="4711"))
+
+        nexview.post(
+            f"{URL}/api/settings/channels/webhook/targets",
+            json={"id": 12, "verified": True},
+        )
+        nexview.put(f"{URL}/api/settings/channels/webhook/targets/12/events", json={})
+
+        with (
+            patch(
+                "custom_components.nexview.api.NexviewClient.webhook_test",
+                AsyncMock(side_effect=testnachricht),
+            ),
+            patch(
+                "custom_components.nexview.api.NexviewClient.webhook_confirm",
+                AsyncMock(),
+            ),
+            patch(
+                "custom_components.nexview.api.NexviewClient.webhook_save",
+                AsyncMock(return_value={"id": 12}),
+            ) as gespeichert,
+        ):
+            await setup_entry(hass, entry)
+
+        assert gefragt == ["de"], "Nexview wurde nicht in der Sprache dieser Instanz gefragt."
+        assert gespeichert.await_args.args[2] == "de"
+
+    async def test_anything_that_is_not_german_gets_english(
+        self,
+        hass: HomeAssistant,
+        entry: MockConfigEntry,
+        nexview: AiohttpClientMocker,
+        hass_client_no_auth,
+    ) -> None:
+        """Nexview kennt genau zwei Sprachen. Alles andere bekommt Englisch."""
+        hass.config.language = "fr"
+        gefragt: list[str] = []
+
+        async def testnachricht(name: str, url: str, language: str = "en") -> None:
+            gefragt.append(language)
+            await _call_webhook(hass_client_no_auth, _payload("test", code="4711"))
+
+        with (
+            patch(
+                "custom_components.nexview.api.NexviewClient.webhook_test",
+                AsyncMock(side_effect=testnachricht),
+            ),
+            patch(
+                "custom_components.nexview.api.NexviewClient.webhook_confirm",
+                AsyncMock(),
+            ),
+            patch(
+                "custom_components.nexview.api.NexviewClient.webhook_save",
+                AsyncMock(return_value={"id": 12}),
+            ),
+        ):
+            await setup_entry(hass, entry)
+
+        assert gefragt == ["en"]
 
 
 class TestWhenNexviewCannotReachUs:
