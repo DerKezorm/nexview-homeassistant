@@ -9,7 +9,7 @@
           "api_key": "Access key"
         },
         "data_description": {
-          "url": "Where Nexview answers, for example http://nexview.local:8000",
+          "url": "Where Nexview answers, for example {example}",
           "api_key": "A personal access key starting with nxv_. What this integration can show and do follows the account the key belongs to, and a key marked read only will show figures but decide nothing."
         }
       },

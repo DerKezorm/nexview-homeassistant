@@ -9,7 +9,7 @@
           "api_key": "Zugriffs-Schlüssel"
         },
         "data_description": {
-          "url": "Wo Nexview antwortet, zum Beispiel http://nexview.local:8000",
+          "url": "Wo Nexview antwortet, zum Beispiel {example}",
           "api_key": "Ein persönlicher Zugriffs-Schlüssel, er beginnt mit nxv_. Was hier zu sehen ist und was geht, richtet sich nach dem Konto, zu dem der Schlüssel gehört. Ein Schlüssel auf „nur lesen“ zeigt Zahlen, entscheidet aber nichts."
         }
       },

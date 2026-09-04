@@ -65,6 +65,13 @@ STEP_USER = vol.Schema(
 
 STEP_REAUTH = vol.Schema({vol.Required(CONF_KEY): str})
 
+#: Wie eine Adresse aussieht, als Beispiel unter dem Eingabefeld.
+#:
+#: ⚠️ **Als Platzhalter und nicht im Uebersetzungstext.** Home Assistants
+#: hassfest lehnt Adressen in Uebersetzungen ab, und mit Recht: Wer uebersetzt,
+#: soll einen Satz uebersetzen und nicht versehentlich eine Adresse veraendern.
+EXAMPLE_URL = "http://nexview.local:8000"
+
 
 class NexviewConfigFlow(ConfigFlow, domain=DOMAIN):
     """Ask, check, save."""
@@ -111,7 +118,10 @@ class NexviewConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=STEP_USER,
             errors=errors,
-            description_placeholders={"min_version": MIN_VERSION},
+            description_placeholders={
+                "min_version": MIN_VERSION,
+                "example": EXAMPLE_URL,
+            },
         )
 
     async def async_step_reauth(

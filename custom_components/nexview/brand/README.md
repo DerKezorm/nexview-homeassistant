@@ -1,31 +1,34 @@
-# Für Home Assistants `brands`-Repository
+# Das Symbol der Integration
 
-Ohne einen Eintrag dort zeigt Home Assistant ein graues Feld statt eines
-Symbols, und zwar überall: in der Integrationsliste, auf jedem Gerät, in der
-Suche beim Hinzufügen.
+Home Assistant nimmt es von hier. **Kein Eintrag bei `home-assistant/brands`
+nötig** und auch nicht mehr möglich: Seit 2026.3 bringen Anbindungen ihr Symbol
+selbst mit, und lokale Dateien haben Vorrang vor dem, was der zentrale Dienst
+liefert. Ein Pull Request dorthin wird seither abgelehnt.
 
-Die beiden Dateien hier sind, was dort hingehört:
-
-| Datei | Größe | wohin |
+| Datei | Größe | wofür |
 |---|---|---|
-| `icon.png` | 256×256 | `custom_integrations/nexview/icon.png` |
-| `icon@2x.png` | 512×512 | `custom_integrations/nexview/icon@2x.png` |
+| `icon.png` | 256×256 | überall: Integrationsliste, Geräte, Suche |
+| `icon@2x.png` | 512×512 | für Bildschirme mit hoher Auflösung |
+
+Home Assistant nimmt das Icon auch dort, wo eine Wortmarke stünde. Ein eigenes
+`logo.png` (querformatig, mit Schriftzug) wäre möglich, aber nichts fehlt ohne
+es. Für den hellen und den dunklen Modus getrennte Fassungen gäbe es als
+`dark_icon.png`; dieses Symbol trägt beide.
+
+## Woher sie kommen
 
 Beide entstehen aus einer Vorlage, dem App-Symbol der Projektseite
-(`nexapps-website/public/assets/img/icon-512.png`), erzeugt mit dem Skript, das
-in der Beschreibung dieses Ordners steht. **Eine Vorlage, zwei Größen** — wer
-zwei Zeichnungen pflegt, hat irgendwann zwei verschiedene Symbole, und beim
-Wechsel der Auflösung springt es.
+(`nexapps-website/public/assets/img/icon-512.png`). **Eine Vorlage, zwei
+Größen** — wer zwei Zeichnungen pflegt, hat irgendwann zwei verschiedene
+Symbole, und beim Wechsel der Auflösung springt es.
 
-## So kommen sie dorthin
+Zum Nachziehen, wenn sich die Vorlage ändert:
 
-`brands` gehört Home Assistant, nicht diesem Projekt. Der Weg ist ein Pull
-Request:
+```python
+from PIL import Image
 
-1. `home-assistant/brands` abzweigen.
-2. `custom_integrations/nexview/` anlegen und beide Dateien hineinlegen.
-3. Pull Request stellen. Geprüft wird maschinell: quadratisch, PNG mit
-   Alphakanal, genau diese beiden Größen, kein unnötiger durchsichtiger Rand.
-
-⚠️ **Erst sinnvoll, wenn die Integration öffentlich ist.** Ein Pull Request für
-etwas, das niemand installieren kann, wird zu Recht abgelehnt.
+bild = Image.open("icon-512.png").convert("RGBA")
+bild = bild.crop(bild.getbbox())          # durchsichtigen Rand weg
+for name, kante in (("icon.png", 256), ("icon@2x.png", 512)):
+    bild.resize((kante, kante), Image.LANCZOS).save(name, optimize=True)
+```

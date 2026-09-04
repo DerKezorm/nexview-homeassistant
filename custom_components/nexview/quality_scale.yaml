@@ -11,14 +11,7 @@ rules:
   # --- Bronze -------------------------------------------------------------
   action-setup: done
   appropriate-polling: done
-  brands:
-    status: todo
-    comment: >-
-      brand/ now carries the two files home-assistant/brands wants, 256 and
-      512, both cut from the one artwork Nexview uses as its app icon. What is
-      still missing is the pull request over there, and that only makes sense
-      once this integration is public: asking for a brand entry for something
-      nobody can install would rightly be turned down.
+  brands: done
   common-modules: done
   config-flow: done
   config-flow-test-coverage: done
