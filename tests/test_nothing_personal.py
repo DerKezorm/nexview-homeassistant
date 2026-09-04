@@ -96,9 +96,23 @@ def _tracked_files() -> list[Path]:
     return [p for p in files if p.suffix in TEXT_SUFFIXES and p.exists()]
 
 
+#: Endungen, hinter denen eine Datei steht und keine Mailadresse.
+#:
+#: ⚠️ **``icon@2x.png`` ist der Fall, an dem das aufgefallen ist.** Das Muster
+#: fuer Mailadressen trifft darauf, und der Waechter meldete den Dateinamen des
+#: eigenen Logos als Fund. Ein Fehlalarm kostet zwar nur eine Umbenennung, aber
+#: einer, den man nicht abstellen kann, bringt jemanden dazu, den Waechter
+#: abzuschalten.
+DATEIENDUNGEN = (
+    ".png", ".jpg", ".jpeg", ".svg", ".gif", ".webp", ".ico",
+    ".css", ".js", ".json", ".md", ".txt", ".yaml", ".yml",
+)
+
+
 def _is_allowed(kind: str, hit: str) -> bool:
     if kind == "a mail address":
-        return hit.lower().endswith(ALLOWED_MAIL_DOMAINS)
+        klein = hit.lower()
+        return klein.endswith(ALLOWED_MAIL_DOMAINS) or klein.endswith(DATEIENDUNGEN)
     return False
 
 
