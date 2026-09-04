@@ -5,3 +5,7 @@ __pycache__/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Die Woerter, die der Personendaten-Waechter sperrt. Sie waeren
+# selbst die Angabe, die er heraushalten soll.
+tests/.personal-words

@@ -13,6 +13,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
@@ -22,6 +23,17 @@ from custom_components.nexview.diagnostics import (
 )
 
 from .conftest import IDENTITY_ADMIN, IDENTITY_USER, KEY, URL, WEBHOOK_ID, setup_entry
+
+
+def _wert(hass: HomeAssistant, entry: MockConfigEntry, unique: str) -> float | None:
+    """Der Zahlenwert eines Eintrags, ueber seine dauerhafte Kennung gesucht."""
+    registry = er.async_get(hass)
+    kennung = registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_{unique}"
+    )
+    assert kennung, f"Keine Entitaet fuer {unique}"
+    zustand = hass.states.get(kennung)
+    return None if zustand is None else float(zustand.state)
 
 
 @pytest.fixture(autouse=True)
@@ -297,3 +309,358 @@ class TestTheEventTable:
                     assert typ in zustaende, f"{datei}: {gruppe}/{typ} hat keinen Text"
                     geprueft += 1
         assert geprueft > 40, f"Nur {geprueft} Texte geprueft - zu wenig."
+
+class TestTheStorageSplit:
+    """⚠️ Beim Durchsehen vermisst, und zu Recht.
+
+    "Belegt durch die Bibliothek" wirft zwei sehr verschiedene Dinge zusammen:
+    was die Bewohner angefragt haben und was dem Haus gehoert - alles, was
+    schon vor Nexview da war oder nachtraeglich uebernommen wurde. Nur die
+    erste Haelfte zaehlt gegen Kontingente und waechst, wenn jemand etwas
+    anfragt.
+    """
+
+    async def test_house_and_people_add_up_to_the_total(
+        self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
+    ) -> None:
+        """Die Differenz, nicht eine zweite Abfrage.
+
+        Zwei Zahlen aus derselben Summe koennen nicht auseinanderlaufen. Zwei
+        getrennte Abfragen koennten es, und niemand merkte es.
+        """
+        from .conftest import TILE
+
+        await setup_entry(hass, entry)
+
+        gesamt = _wert(hass, entry, "used_space")
+        haus = _wert(hass, entry, "house_space")
+        leute = _wert(hass, entry, "people_space")
+
+        assert None not in (gesamt, haus, leute)
+        # Home Assistant rechnet in Terabyte um; verglichen wird deshalb mit
+        # einer Toleranz statt auf Byte genau.
+        assert abs((haus + leute) - gesamt) < 0.01, (
+            f"Haus ({haus}) und Bewohner ({leute}) ergeben nicht die Summe ({gesamt})."
+        )
+        erwartet = TILE["bibliothek"]["hausbestand_bytes"] / 1_000_000_000_000
+        assert abs(haus - erwartet) < 0.01
+
+    async def test_an_older_nexview_puts_everything_on_the_people(
+        self, hass: HomeAssistant, entry: MockConfigEntry, aioclient_mock
+    ) -> None:
+        """Ein Nexview vor 0.31 kennt das Feld nicht.
+
+        Dann ist der Hausbestand 0 und alles zaehlt bei den Bewohnern. Das ist
+        die ehrlichere Vorgabe: Es sagt "wir wissen es nicht" durch eine Null
+        beim Haus, statt eine erfundene Aufteilung zu zeigen.
+        """
+        from .conftest import (
+            ABOUT,
+            ANALYSIS,
+            IDENTITY_ADMIN,
+            MY_STORAGE,
+            PLAYING,
+            QUOTA,
+            SERVERS,
+            STATS,
+            TILE,
+        )
+
+        alt = {**TILE, "bibliothek": {
+            k: v for k, v in TILE["bibliothek"].items() if k != "hausbestand_bytes"
+        }}
+        aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_ADMIN)
+        aioclient_mock.get(f"{URL}/api/v1/dashboard", json=alt)
+        aioclient_mock.get(
+            f"{URL}/api/v1/admin/requests/pending/count", json={"pending": 0}
+        )
+        aioclient_mock.get(f"{URL}/api/v1/me/push", json={"eingerichtet": False})
+        aioclient_mock.get(f"{URL}/api/admin/analyse", json=ANALYSIS)
+        aioclient_mock.get(f"{URL}/api/admin/analyse/laufend", json=PLAYING)
+        aioclient_mock.get(f"{URL}/api/admin/stats", json=STATS)
+        aioclient_mock.get(f"{URL}/api/admin/requests", json=[])
+        aioclient_mock.get(f"{URL}/api/calendar", json={"days": []})
+        aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
+        aioclient_mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
+        aioclient_mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
+        aioclient_mock.get(
+            f"{URL}/api/v1/notifications/unread/count", json={"unread": 0}
+        )
+        aioclient_mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
+        aioclient_mock.get(
+            f"{URL}/api/settings/qualitaetsprofile/medienserver", json=SERVERS
+        )
+
+        await setup_entry(hass, entry)
+
+        assert _wert(hass, entry, "house_space") == 0
+        assert _wert(hass, entry, "people_space") == _wert(hass, entry, "used_space")
+
+    async def test_the_error_count_says_which_error(
+        self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
+    ) -> None:
+        """⚠️ Eine Zahl allein hilft niemandem.
+
+        "Befunde, Fehler: 1" sagt, dass etwas nicht stimmt, und verschweigt
+        was. Nexview liefert die dringendsten als Kennungen mit; Kennungen
+        nennen keine Titel und keine Personen und duerfen deshalb in eine
+        Datenbank, die alles jahrelang behaelt.
+        """
+        from .conftest import TILE
+
+        await setup_entry(hass, entry)
+
+        registry = er.async_get(hass)
+        eintrag = registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{entry.entry_id}_findings_error"
+        )
+        zustand = hass.states.get(eintrag)
+        assert zustand.attributes.get("worst") == list(
+            TILE["befunde"]["dringendste"]
+        ), "Der Zaehler nennt nicht, worum es geht."
+
+class TestWhatAnOperatorDoesNotGet:
+    """⚠️ Beim Durchsehen aufgefallen: beim Betreiber ist das immer null.
+
+    Er hatte recht, und Nexviews Quelltext sagt es woertlich: Was ein
+    Administrator holt, gehoert dem Haus. Ihm etwas zuzurechnen erfuellte
+    keinen Zweck und verfaelschte die Uebersicht - dort staende dann "admin
+    belegt 20 TB" und alle anderen waeren daneben unsichtbar.
+
+    Damit stehen bei ihm drei Zahlen dauerhaft auf null, und zwar nicht, weil
+    er nichts getan hat, sondern weil es woanders gebucht wird. Eine Null, die
+    nichts bedeutet, ist schlechter als kein Eintrag.
+    """
+
+    async def test_an_operator_gets_no_personal_storage_figures(
+        self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
+    ) -> None:
+        await setup_entry(hass, entry)
+
+        registry = er.async_get(hass)
+        for unique in ("my_storage_used", "my_items"):
+            assert (
+                registry.async_get_entity_id(
+                    "sensor", DOMAIN, f"{entry.entry_id}_{unique}"
+                )
+                is None
+            ), f"{unique} steht beim Betreiber und ist dort immer null."
+
+    async def test_an_operator_gets_no_quota_figures_either(
+        self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
+    ) -> None:
+        """Kein Kontingent, also auch kein Verbrauch und keine Restmenge."""
+        await setup_entry(hass, entry)
+
+        registry = er.async_get(hass)
+        for unique in (
+            "my_movie_quota_used",
+            "my_movie_quota_remaining",
+            "my_series_quota_used",
+            "my_series_quota_remaining",
+            "my_storage_remaining",
+        ):
+            assert (
+                registry.async_get_entity_id(
+                    "sensor", DOMAIN, f"{entry.entry_id}_{unique}"
+                )
+                is None
+            ), f"{unique} steht beim Betreiber, der gar kein Kontingent hat."
+
+    async def test_but_the_bell_and_the_tickets_stay(
+        self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
+    ) -> None:
+        """⚠️ Die Gegenprobe, damit hier nicht zu viel verschwindet.
+
+        Ungelesene Meldungen und eigene Tickets haengen an keinem Kontingent
+        und an keiner Zurechnung. Sie gelten fuer jeden, auch fuer den
+        Betreiber - und ohne sie bliebe von einem persoenlichen Zugang wieder
+        fast nichts uebrig.
+        """
+        await setup_entry(hass, entry)
+
+        registry = er.async_get(hass)
+        assert registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{entry.entry_id}_my_unread"
+        ), "Die Glocke fehlt."
+        assert registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{entry.entry_id}_my_open_tickets"
+        ), "Die eigenen Tickets fehlen."
+
+    async def test_a_user_keeps_everything(
+        self, hass: HomeAssistant, entry: MockConfigEntry, aioclient_mock
+    ) -> None:
+        """Bei einem begrenzten Konto bleibt jede Zahl stehen."""
+        from .conftest import ABOUT, IDENTITY_USER
+
+        aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_USER)
+        aioclient_mock.get(f"{URL}/api/v1/me/push", json={"eingerichtet": False})
+        aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
+        aioclient_mock.get(
+            f"{URL}/api/v1/requests/quota",
+            json={
+                "movie": {"used": 2, "limit": 5},
+                "tv": {"used": 1, "limit": 3},
+            },
+        )
+        aioclient_mock.get(
+            f"{URL}/api/v1/storage/me",
+            json={
+                "used_bytes": 900_000_000,
+                "items": 4,
+                "limit_bytes": 5_000_000_000,
+                "zurechenbar": True,
+            },
+        )
+        aioclient_mock.get(
+            f"{URL}/api/v1/notifications/unread/count", json={"unread": 0}
+        )
+        aioclient_mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
+
+        await setup_entry(hass, entry)
+
+        registry = er.async_get(hass)
+        geprueft = 0
+        for unique in (
+            "my_movie_quota_used",
+            "my_movie_quota_remaining",
+            "my_series_quota_used",
+            "my_storage_used",
+            "my_storage_remaining",
+            "my_items",
+        ):
+            assert registry.async_get_entity_id(
+                "sensor", DOMAIN, f"{entry.entry_id}_{unique}"
+            ), f"{unique} fehlt bei einem Konto mit Grenze."
+            geprueft += 1
+        assert geprueft == 6
+
+class TestWhatTheAccountDeviceWasMissing:
+    """Vier Luecken, die beim Durchsehen eines Konten-Geraets auffielen."""
+
+    def _entry(self) -> MockConfigEntry:
+        from custom_components.nexview.const import CONF_ACCOUNTS
+
+        return MockConfigEntry(
+            domain=DOMAIN,
+            unique_id=f"{URL}::1",
+            data={"url": URL, "api_key": KEY, "webhook_id": WEBHOOK_ID},
+            options={CONF_ACCOUNTS: ["7"]},
+        )
+
+    async def test_every_icon_exists(self, hass: HomeAssistant) -> None:
+        """⚠️ Ein erfundenes Symbol bleibt einfach leer.
+
+        "Serien uebrig" trug ``mdi:television-plus``, und das gibt es nicht -
+        MDI kennt television-play, -classic, -guide und neun weitere, aber
+        kein -plus. Home Assistant meldet das nicht, es zeigt nichts an.
+
+        Geprueft wird gegen die Symbolliste, die im Frontend dieser
+        Installation liegt. Damit faellt der Test um, sobald jemand einen
+        Namen erfindet - und nicht erst, wenn es jemandem auffaellt.
+        """
+        import json
+        from pathlib import Path
+
+        kandidaten = list(Path("/opt/hatest").rglob("hass_frontend/static/mdi"))
+        if not kandidaten:
+            import homeassistant.components.frontend as hf
+
+            kandidaten = list(Path(hf.__file__).parent.rglob("static/mdi"))
+        if not kandidaten:
+            import pytest
+
+            pytest.skip("Symbolliste dieser Installation nicht gefunden")
+
+        bekannt: set[str] = set()
+        for datei in kandidaten[0].glob("*.json"):
+            try:
+                inhalt = json.loads(datei.read_text(encoding="utf-8"))
+            except Exception:
+                continue
+            if isinstance(inhalt, dict):
+                bekannt.update(inhalt)
+        assert len(bekannt) > 5000, f"Nur {len(bekannt)} Symbole gelesen - zu wenig."
+
+        eigene = json.loads(
+            (
+                Path(__file__).parent.parent
+                / "custom_components/nexview/icons.json"
+            ).read_text(encoding="utf-8")
+        )
+        geprueft = 0
+        for bereich, eintraege in eigene.get("entity", {}).items():
+            for schluessel, wert in eintraege.items():
+                name = (wert or {}).get("default", "")
+                if not name.startswith("mdi:"):
+                    continue
+                geprueft += 1
+                assert name[4:] in bekannt, (
+                    f"{bereich}.{schluessel} nennt {name}, und das Symbol gibt es nicht."
+                )
+        assert geprueft > 40, f"Nur {geprueft} Symbole geprueft - zu wenig."
+
+    async def test_the_allowance_itself_is_a_figure(
+        self, hass: HomeAssistant, nexview: AiohttpClientMocker
+    ) -> None:
+        """⚠️ "verbraucht 2" und "uebrig 8" nennen die Grenze nur zusammen.
+
+        Auf einer Kachel steht meist eine der beiden, und dann fehlt der
+        Massstab. Die Grenze selbst gehoert daneben.
+        """
+        entry = self._entry()
+        await setup_entry(hass, entry)
+
+        registry = er.async_get(hass)
+        for unique, erwartet in (
+            ("account7_movie_quota_limit", "5"),
+            ("account7_series_quota_limit", "3"),
+        ):
+            kennung = registry.async_get_entity_id(
+                "sensor", DOMAIN, f"{entry.entry_id}_{unique}"
+            )
+            assert kennung, f"{unique} fehlt."
+            assert hass.states.get(kennung).state == erwartet
+
+    async def test_exhausted_says_which_half(
+        self, hass: HomeAssistant, nexview: AiohttpClientMocker
+    ) -> None:
+        """⚠️ "Aufgebraucht" ohne "woran" ist eine Sackgasse.
+
+        Wer noch Platz hat, aber keine Stueck mehr, braucht eine andere
+        Antwort als wer sein Speicherkontingent voll hat. Der Zustand allein
+        unterscheidet das nicht.
+        """
+        entry = self._entry()
+        await setup_entry(hass, entry)
+
+        registry = er.async_get(hass)
+        kennung = registry.async_get_entity_id(
+            "binary_sensor", DOMAIN, f"{entry.entry_id}_account7_quota_exhausted"
+        )
+        zustand = hass.states.get(kennung)
+        assert zustand.state == "on"
+        assert zustand.attributes.get("exhausted") == ["series"], (
+            "Das Gast-Konto hat drei von drei Serien und sonst Platz - genau "
+            "der Fall, den der Zustand allein verschweigt."
+        )
+
+    async def test_the_last_sign_in_is_a_timestamp(
+        self, hass: HomeAssistant, nexview: AiohttpClientMocker
+    ) -> None:
+        """Ein Konto, das seit einem Jahr niemand angefasst hat, ist die
+        haeufigste Frage vor dem Aufraeumen."""
+        entry = self._entry()
+        await setup_entry(hass, entry)
+
+        registry = er.async_get(hass)
+        kennung = registry.async_get_entity_id(
+            "sensor", DOMAIN, f"{entry.entry_id}_account7_last_login"
+        )
+        assert kennung, "Der letzte Login fehlt."
+        zustand = hass.states.get(kennung)
+        assert zustand.state.startswith("2026-09-01T18:30:00"), zustand.state
+        assert "+00:00" in zustand.state, (
+            "Nexview schreibt ohne Zonenangabe; ohne UTC daran lehnt Home "
+            "Assistant den Zeitstempel ab."
+        )

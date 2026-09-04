@@ -179,6 +179,24 @@
       },
       "my_open_tickets": {
         "name": "Meine offenen Tickets"
+      },
+      "house_space": {
+        "name": "Belegt durch den Hausbestand"
+      },
+      "people_space": {
+        "name": "Belegt durch die Bewohner"
+      },
+      "movie_quota_limit": {
+        "name": "Filme-Kontingent"
+      },
+      "series_quota_limit": {
+        "name": "Serien-Kontingent"
+      },
+      "storage_limit": {
+        "name": "Speicherkontingent"
+      },
+      "account_last_login": {
+        "name": "Zuletzt angemeldet"
       }
     },
     "event": {

@@ -178,6 +178,9 @@ class Tile:
     series: int
     used_bytes: int
     free_bytes: int
+    #: Wieviel vom belegten Platz dem Haus gehoert und bei niemandem zaehlt.
+    #: 0 bei einem Nexview vor 0.31, das dieses Feld noch nicht kennt.
+    house_bytes: int
     open_tickets: int
     instances: tuple[Instance, ...]
 
@@ -198,6 +201,7 @@ class Tile:
             movies=int(library.get("filme", 0) or 0),
             series=int(library.get("serien", 0) or 0),
             used_bytes=int(library.get("belegt_bytes", 0) or 0),
+            house_bytes=int(library.get("hausbestand_bytes", 0) or 0),
             free_bytes=int(library.get("frei_bytes", 0) or 0),
             open_tickets=int(raw.get("tickets_offen", 0) or 0),
             instances=tuple(Instance.from_json(i) for i in raw.get("instanzen") or ()),
@@ -247,6 +251,14 @@ class AccountUsage:
     storage: Quota
     #: Requests of this account still waiting for a decision.
     pending: int = 0
+    #: Wann sich dieses Konto zuletzt angemeldet hat, als ISO-Zeitpunkt.
+    #: ``None`` heisst: noch nie, oder Nexview ist aelter als 0.31.
+    #:
+    #: ⚠️ **Ein Zeitpunkt, kein Verlauf.** Wer wissen will, welche Konten
+    #: eingeschlafen sind, sieht es hier auf einen Blick. Was jemand wann
+    #: getan hat, bleibt drueben - eine Anwesenheitsliste gehoert nicht in
+    #: eine Datenbank, die alles jahrelang behaelt.
+    last_login: str | None = None
 
     @classmethod
     def from_json(cls, raw: dict[str, Any]) -> AccountUsage:
@@ -275,6 +287,7 @@ class AccountUsage:
                 grenze(raw.get("storage_limit_bytes")),
             ),
             pending=zahl(raw.get("pending")),
+            last_login=(raw.get("last_login_at") or None),
         )
 
 
@@ -296,6 +309,16 @@ class Personal:
     items: int = 0
     unread: int = 0
     open_tickets: int = 0
+    #: Bekommt dieses Konto ueberhaupt Titel zugerechnet?
+    #:
+    #: ⚠️ **Bei einem Administrator nicht, und zwar strukturell.** Was er holt,
+    #: gehoert in Nexview dem Haus: Er hat keine Grenze, ihm etwas
+    #: zuzurechnen erfuellt keinen Zweck und verfaelscht die Uebersicht.
+    #: ``items`` und der belegte Platz stehen bei ihm deshalb dauerhaft auf
+    #: null - nicht, weil er nichts geholt hat, sondern weil es woanders
+    #: gebucht wird. Nexview sagt das selbst, damit hier keine Regel
+    #: nachgebaut wird, die sich drueben aendern kann.
+    attributable: bool = True
     #: Wann das Kontingent zurückgesetzt wird, als ISO-Zeitpunkt. ``None`` bei
     #: einem Kontingent ohne Zeitraum.
     resets_at: str | None = None
@@ -334,6 +357,7 @@ class Personal:
                 ),
             ),
             items=int(storage.get("items") or 0),
+            attributable=bool(storage.get("zurechenbar", True)),
             unread=unread,
             open_tickets=tickets,
             resets_at=film.get("resets_at") or serie.get("resets_at") or None,

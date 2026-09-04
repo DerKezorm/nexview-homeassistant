@@ -165,6 +165,17 @@ class TestAccounts:
         await setup_entry(hass, entry)
 
         gast = _state(hass, entry, "account7_quota_exhausted", "binary_sensor")
-        admin = _state(hass, entry, "account1_quota_exhausted", "binary_sensor")
         assert gast.state == "on"
-        assert admin.state == "off"
+
+        # ⚠️ **Ein unbegrenztes Konto bekommt den Eintrag gar nicht erst.**
+        # Vorher stand er dort dauerhaft auf "off" - ein Problemsensor fuer
+        # ein Problem, das es bei diesem Konto nicht geben kann. Dieselbe
+        # Regel wie bei den Rest-Eintraegen: kein Eintrag, wo keine Grenze
+        # ist, und er entsteht von selbst, sobald jemand eine setzt.
+        registry = er.async_get(hass)
+        assert (
+            registry.async_get_entity_id(
+                "binary_sensor", DOMAIN, f"{entry.entry_id}_account1_quota_exhausted"
+            )
+            is None
+        ), "Konto 1 ist unbegrenzt und braucht keinen Eintrag dafuer."

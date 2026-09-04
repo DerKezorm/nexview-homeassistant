@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -25,6 +27,7 @@ from homeassistant.components.sensor import (
 from homeassistant.const import EntityCategory, UnitOfInformation, UnitOfTime
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.util import dt as dt_util
 
 from .api import (
     CAP_ADMINISTER,
@@ -59,6 +62,8 @@ class NexviewSensorDescription(SensorEntityDescription):
     #: rather than showing a zero that nobody measured. Float rather than int
     #: because one of these is a duration in hours.
     value_fn: Callable[[Snapshot], float | None]
+    #: Zusaetzliche Angaben am Eintrag. ``None`` heisst: keine.
+    attrs_fn: Callable[[Snapshot], dict[str, Any] | None] | None = None
 
 
 def _pending(snapshot: Snapshot) -> int | None:
@@ -101,6 +106,17 @@ SENSORS: tuple[NexviewSensorDescription, ...] = (
         requires=CAP_ADMINISTER,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda s: s.tile.findings_error if s.tile else None,
+        # ⚠️ **Eine Zahl allein hilft niemandem.** "Befunde, Fehler: 1" sagt,
+        # dass etwas nicht stimmt, und verschweigt was - die Antwort stand
+        # bisher nur in der Diagnosedatei. Nexview liefert die drei
+        # dringendsten als Kennungen mit, und Kennungen sind das Richtige fuer
+        # ein Attribut: Sie nennen keine Titel und keine Personen und landen
+        # deshalb gefahrlos in einer Datenbank, die alles jahrelang behaelt.
+        attrs_fn=lambda s: (
+            {"worst": list(s.tile.findings_worst)}
+            if s.tile and s.tile.findings_worst
+            else None
+        ),
     ),
     NexviewSensorDescription(
         key="findings_warning",
@@ -158,6 +174,34 @@ SENSORS: tuple[NexviewSensorDescription, ...] = (
         suggested_display_precision=2,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda s: s.tile.used_bytes if s.tile else None,
+    ),
+    NexviewSensorDescription(
+        key="house_space",
+        translation_key="house_space",
+        requires=CAP_ADMINISTER,
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.TERABYTES,
+        suggested_display_precision=2,
+        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=lambda s: s.tile.house_bytes if s.tile else None,
+    ),
+    NexviewSensorDescription(
+        key="people_space",
+        translation_key="people_space",
+        requires=CAP_ADMINISTER,
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.TERABYTES,
+        suggested_display_precision=2,
+        state_class=SensorStateClass.MEASUREMENT,
+        # ⚠️ **Die Differenz, nicht eine eigene Abfrage.** Was die Bewohner
+        # zusammen belegen, ist genau das, was nicht dem Haus gehoert. Zwei
+        # Zahlen aus derselben Summe koennen nicht auseinanderlaufen; zwei
+        # getrennte Abfragen koennten es.
+        value_fn=(
+            lambda s: max(0, s.tile.used_bytes - s.tile.house_bytes) if s.tile else None
+        ),
     ),
     NexviewSensorDescription(
         key="movies",
@@ -261,7 +305,10 @@ PERSONAL_SENSORS: tuple[NexviewSensorDescription, ...] = (
 class NexviewAccountSensorDescription(SensorEntityDescription):
     """One figure about one account."""
 
-    value_fn: Callable[[AccountUsage], int | None]
+    #: ⚠️ Auch ein Zeitpunkt kann hier stehen (der letzte Login). Home
+    #: Assistant erwartet dafuer ein ``datetime``; die Umwandlung aus Nexviews
+    #: ISO-Text macht die Entitaet, nicht diese Tabelle.
+    value_fn: Callable[[AccountUsage], int | str | None]
     #: Whether this figure exists at all for a given account.
     #:
     #: ⚠️ **Unbegrenzt heisst nicht "unbekannt".** Wo Nexview kein Limit
@@ -298,6 +345,44 @@ ACCOUNT_SENSORS: tuple[NexviewAccountSensorDescription, ...] = (
         applies_to=lambda a: not a.series.unlimited,
         state_class=SensorStateClass.MEASUREMENT,
         value_fn=lambda a: a.series.remaining,
+    ),
+    #: ⚠️ **Die Grenze selbst, nicht nur die beiden Zahlen drumherum.**
+    #: "verbraucht 2" und "uebrig 8" sagen zusammen, dass die Grenze bei zehn
+    #: liegt - aber nur, wenn man beide gleichzeitig ansieht. Auf einer
+    #: Kachel steht meist eine davon, und dann fehlt der Massstab.
+    NexviewAccountSensorDescription(
+        key="movie_quota_limit",
+        translation_key="movie_quota_limit",
+        applies_to=lambda a: not a.movies.unlimited,
+        value_fn=lambda a: a.movies.limit,
+    ),
+    NexviewAccountSensorDescription(
+        key="series_quota_limit",
+        translation_key="series_quota_limit",
+        applies_to=lambda a: not a.series.unlimited,
+        value_fn=lambda a: a.series.limit,
+    ),
+    NexviewAccountSensorDescription(
+        key="storage_limit",
+        translation_key="storage_limit",
+        applies_to=lambda a: not a.storage.unlimited,
+        device_class=SensorDeviceClass.DATA_SIZE,
+        native_unit_of_measurement=UnitOfInformation.BYTES,
+        suggested_unit_of_measurement=UnitOfInformation.GIGABYTES,
+        suggested_display_precision=1,
+        value_fn=lambda a: a.storage.limit,
+    ),
+    #: ⚠️ **Ein Zeitpunkt, kein Verlauf.** Wer wissen will, welche Konten
+    #: eingeschlafen sind, sieht es hier - und ein Konto, das seit einem Jahr
+    #: niemand angefasst hat, ist die haeufigste Frage vor dem Aufraeumen.
+    #: Was jemand wann getan hat, bleibt in Nexview: Eine Anwesenheitsliste
+    #: gehoert nicht in eine Datenbank, die alles jahrelang behaelt.
+    NexviewAccountSensorDescription(
+        key="last_login",
+        translation_key="account_last_login",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        applies_to=lambda a: a.last_login is not None,
+        value_fn=lambda a: a.last_login,
     ),
     NexviewAccountSensorDescription(
         key="open_requests",
@@ -412,10 +497,26 @@ async def async_setup_entry(
     # fremden Konten: kein Eintrag, wo es keine Grenze gibt.
     eigenes = coordinator.data.personal
     if eigenes is not None:
+        # ⚠️ **Drei Gruende, warum ein Eintrag hier nicht entsteht.**
+        #
+        # 1. Keine Grenze, also keine Restmenge. Ein dauerhaftes "Nicht
+        #    verfuegbar" liest sich wie ein Fehler statt wie eine Freiheit.
+        # 2. Keine Grenze, also auch kein Verbrauch: "verbraucht" gehoert zum
+        #    Kontingent, und wo keines ist, zaehlt es nichts, sondern misst
+        #    eine Zahl ohne Bezugsgroesse.
+        # 3. Nichts zugerechnet: Was ein Administrator holt, gehoert in
+        #    Nexview dem Haus. Sein belegter Platz und seine Titel stehen
+        #    deshalb dauerhaft auf null - eine Null, die nichts bedeutet.
+        #
+        # Alle drei entstehen von selbst, sobald sich drueben etwas aendert.
         ohne_grenze = {
             "my_movie_quota_remaining": eigenes.movies.unlimited,
+            "my_movie_quota_used": eigenes.movies.unlimited,
             "my_series_quota_remaining": eigenes.series.unlimited,
+            "my_series_quota_used": eigenes.series.unlimited,
             "my_storage_remaining": eigenes.storage.unlimited,
+            "my_storage_used": not eigenes.attributable,
+            "my_items": not eigenes.attributable,
         }
         async_add_entities(
             NexviewSensor(coordinator, description)
@@ -504,6 +605,12 @@ class NexviewSensor(NexviewEntity, SensorEntity):
         return self.entity_description.value_fn(self.coordinator.data)
 
     @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if self.entity_description.attrs_fn is None:
+            return None
+        return self.entity_description.attrs_fn(self.coordinator.data)
+
+    @property
     def available(self) -> bool:
         """Unavailable when there is no figure, not zero.
 
@@ -564,8 +671,17 @@ class NexviewAccountSensor(NexviewAccountEntity, SensorEntity):
         self.entity_description = description
 
     @property
-    def native_value(self) -> int | None:
-        return self.entity_description.value_fn(self.account) if self.account else None
+    def native_value(self) -> int | datetime | None:
+        wert = self.entity_description.value_fn(self.account) if self.account else None
+        if isinstance(wert, str):
+            # ⚠️ **Nexview schreibt Zeitpunkte ohne Zonenangabe, und sie sind
+            # UTC.** Ohne das Anheften lehnt Home Assistant sie fuer eine
+            # Zeitstempel-Entitaet ab, und der Eintrag bliebe leer.
+            zeit = dt_util.parse_datetime(wert)
+            if zeit is None:
+                return None
+            return zeit if zeit.tzinfo else zeit.replace(tzinfo=UTC)
+        return wert
 
     @property
     def available(self) -> bool:

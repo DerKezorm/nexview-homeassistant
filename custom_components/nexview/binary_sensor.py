@@ -7,6 +7,8 @@ it in words.
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
     BinarySensorEntity,
@@ -35,7 +37,17 @@ async def async_setup_entry(
         NexviewReachable(coordinator),
         NexviewPushing(coordinator),
     ]
-    if coordinator.data.personal is not None:
+    # ⚠️ **Ein Problemsensor, der nie anschlagen kann, ist Rauschen.**
+    # Administratoren sind in Nexview immer unbegrenzt (services/quota.py),
+    # und bei ihnen stand hier ein dauerhaftes "OK" fuer eine Grenze, die es
+    # gar nicht gibt. Wo eine Grenze existiert, entsteht der Eintrag von
+    # selbst - dieselbe Regel wie bei den Rest-Eintraegen.
+    eigenes = coordinator.data.personal
+    if eigenes is not None and not (
+        eigenes.movies.unlimited
+        and eigenes.series.unlimited
+        and eigenes.storage.unlimited
+    ):
         entities.append(NexviewMyQuotaExhausted(coordinator))
     async_add_entities(entities)
 
@@ -53,7 +65,18 @@ async def async_setup_entry(
             neu.append(NexviewInstanceWebhook(coordinator, key))
         known_instances.update(current)
 
-        current_accounts = set(coordinator.data.accounts)
+        # Dieselbe Regel wie beim eigenen Konto oben: ohne Grenze kann der
+        # Eintrag nie anschlagen. Bei einem Konto, dessen Grenze spaeter
+        # gesetzt wird, entsteht er beim naechsten Abruf von selbst.
+        current_accounts = {
+            user_id
+            for user_id, konto in coordinator.data.accounts.items()
+            if not (
+                konto.movies.unlimited
+                and konto.series.unlimited
+                and konto.storage.unlimited
+            )
+        }
         known_accounts.intersection_update(current_accounts)
         neu.extend(
             NexviewQuotaExhausted(coordinator, user_id)
@@ -156,6 +179,30 @@ class NexviewQuotaExhausted(NexviewAccountEntity, BinarySensorEntity):
         if a is None:
             return False
         return bool(a.movies.exhausted or a.series.exhausted or a.storage.exhausted)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Welche der drei Grenzen zuschlaegt.
+
+        ⚠️ **Ohne das ist "aufgebraucht" eine Sackgasse.** Der Zustand sagt,
+        dass gerade nichts mehr geht, und verschweigt warum - dabei ist genau
+        das die Frage: Wer noch Platz hat, aber keine Stueck mehr, braucht
+        eine andere Antwort als wer sein Kontingent voll hat.
+        """
+        a = self.account
+        if a is None:
+            return None
+        return {
+            "exhausted": [
+                name
+                for name, teil in (
+                    ("movies", a.movies),
+                    ("series", a.series),
+                    ("storage", a.storage),
+                )
+                if teil.exhausted
+            ]
+        }
 
 
 class NexviewInstanceWebhook(NexviewInstanceEntity, BinarySensorEntity):

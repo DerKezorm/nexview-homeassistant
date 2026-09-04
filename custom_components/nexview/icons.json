@@ -61,7 +61,7 @@
         "default": "mdi:television-play"
       },
       "series_quota_remaining": {
-        "default": "mdi:television-plus"
+        "default": "mdi:playlist-plus"
       },
       "storage_used": {
         "default": "mdi:database"
@@ -109,7 +109,7 @@
         "default": "mdi:television-classic"
       },
       "my_series_quota_remaining": {
-        "default": "mdi:television-plus"
+        "default": "mdi:playlist-plus"
       },
       "my_storage_used": {
         "default": "mdi:database"
@@ -125,6 +125,33 @@
       },
       "my_open_tickets": {
         "default": "mdi:ticket-account"
+      },
+      "house_space": {
+        "default": "mdi:home-variant"
+      },
+      "people_space": {
+        "default": "mdi:account-group"
+      },
+      "movie_quota_limit": {
+        "default": "mdi:movie-cog-outline"
+      },
+      "series_quota_limit": {
+        "default": "mdi:playlist-edit"
+      },
+      "storage_limit": {
+        "default": "mdi:database-cog"
+      },
+      "my_movie_quota_limit": {
+        "default": "mdi:movie-cog-outline"
+      },
+      "my_series_quota_limit": {
+        "default": "mdi:playlist-edit"
+      },
+      "my_storage_limit": {
+        "default": "mdi:database-cog"
+      },
+      "account_last_login": {
+        "default": "mdi:login-variant"
       }
     },
     "event": {
@@ -150,6 +177,12 @@
       },
       "test_connection": {
         "default": "mdi:lan-connect"
+      },
+      "reset_quota": {
+        "default": "mdi:counter"
+      },
+      "reset_storage": {
+        "default": "mdi:database-arrow-right"
       }
     },
     "calendar": {

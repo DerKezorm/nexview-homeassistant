@@ -179,6 +179,24 @@
       },
       "my_open_tickets": {
         "name": "My open tickets"
+      },
+      "house_space": {
+        "name": "Used by the house"
+      },
+      "people_space": {
+        "name": "Used by the people"
+      },
+      "movie_quota_limit": {
+        "name": "Movie allowance"
+      },
+      "series_quota_limit": {
+        "name": "Series allowance"
+      },
+      "storage_limit": {
+        "name": "Storage allowance"
+      },
+      "account_last_login": {
+        "name": "Last signed in"
       }
     },
     "event": {

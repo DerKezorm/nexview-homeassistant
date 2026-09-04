@@ -47,6 +47,32 @@ PATTERNS: dict[str, re.Pattern[str]] = {
 }
 
 
+#: Words that belong to whoever runs this - names, host names, anything that
+#: identifies a person or their household. One per line, ``#`` starts a
+#: comment, matching is case-insensitive.
+#:
+#: ⚠️ **Not committed, and that is the point.** The list itself would be the
+#: personal data it protects. It lives beside this file, git ignores it, and
+#: the check says out loud when it is missing so that a green run in CI is not
+#: mistaken for "the names were checked".
+#:
+#: Nexview has the same mechanism (``backend/tools/personendaten_pruefen.py``);
+#: this is deliberately a small copy rather than a shared dependency between
+#: two repositories that are released separately.
+BLOCKLIST = ROOT / "tests" / ".personal-words"
+
+
+def _blocked_words() -> list[str]:
+    if not BLOCKLIST.exists():
+        return []
+    woerter = []
+    for zeile in BLOCKLIST.read_text(encoding="utf-8").splitlines():
+        wort = zeile.split("#", 1)[0].strip()
+        if len(wort) >= 3:
+            woerter.append(wort)
+    return woerter
+
+
 def _tracked_files() -> list[Path]:
     """Everything git would carry, so ignored files are not scanned.
 
@@ -81,6 +107,11 @@ def test_nothing_personal_is_committed() -> None:
     # ⚠️ A loop over nothing passes. This guard has to see something.
     assert len(files) >= 15, f"Only found {len(files)} files to read - is the path right?"
 
+    woerter = [
+        (wort, re.compile(r"\b" + re.escape(wort) + r"\b", re.IGNORECASE))
+        for wort in _blocked_words()
+    ]
+
     findings: list[str] = []
     for path in files:
         if path.name == Path(__file__).name:
@@ -94,6 +125,12 @@ def test_nothing_personal_is_committed() -> None:
                     findings.append(
                         f"{path.relative_to(ROOT)}:{line_no} looks like {kind}: {hit}"
                     )
+            for wort, muster in woerter:
+                if muster.search(line):
+                    findings.append(
+                        f"{path.relative_to(ROOT)}:{line_no} carries a personal "
+                        f"word: {wort}"
+                    )
 
     assert findings == [], (
         "Something personal would be committed to a public repository:\n  "
@@ -101,6 +138,33 @@ def test_nothing_personal_is_committed() -> None:
         + "\n\nUse example.com for addresses, a made-up host name for addresses, "
         "and never paste a real key. If one of these is a false alarm, widen "
         "ALLOWED_MAIL_DOMAINS rather than deleting the check."
+    )
+
+
+def test_the_word_list_is_there_or_says_so() -> None:
+    """⚠️ A missing list has to be loud, not silent.
+
+    The words that identify a household cannot be committed - they are the
+    very thing this guard keeps out. So the list is ignored by git, and on any
+    machine without it this check only sees the shapes: mail addresses,
+    private network addresses, keys. That is fine, but it must not look like
+    the names were checked too.
+
+    A name once reached a public repository through a docstring, and getting
+    it out again meant rewriting history.
+    """
+    woerter = _blocked_words()
+    if not woerter:
+        import warnings
+
+        warnings.warn(
+            f"{BLOCKLIST.name} is not here, so no names were checked - only "
+            "the patterns. Create it (one word per line) before publishing.",
+            stacklevel=2,
+        )
+        return
+    assert all(len(w) >= 3 for w in woerter), (
+        "A word shorter than three letters would match half the repository."
     )
 
 

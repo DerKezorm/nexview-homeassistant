@@ -63,6 +63,9 @@ TILE: dict[str, Any] = {
         "filme": 812,
         "serien": 94,
         "belegt_bytes": 12_000_000_000_000,
+        # Ein knappes Drittel gehoert dem Haus: alles, was schon vor
+        # Nexview da war oder nachtraeglich uebernommen wurde.
+        "hausbestand_bytes": 3_500_000_000_000,
         "frei_bytes": 3_000_000_000_000,
     },
     "instanzen": [{"name": "Radarr", "erreichbar": True, "probleme": 0}],
@@ -119,6 +122,7 @@ STATS: dict[str, Any] = {
             "user_id": 7,
             "username": "gast",
             "display_name": "Gast",
+            "last_login_at": "2026-09-01T18:30:00",
             "quota_movie_used": 4,
             "quota_movie_limit": 5,
             "quota_series_used": 3,
@@ -249,6 +253,44 @@ MY_STORAGE: dict[str, Any] = {
     "entries": [],
 }
 
+# ⚠️ **Wie Nexview einem Betreiber wirklich antwortet.**
+#
+# Bis hierher stand in der Kulisse ein Administrator mit einem Filmlimit von
+# fuenf - ein Zustand, den Nexview gar nicht erzeugen kann: Administratoren
+# sind dort immer unbegrenzt, und was sie holen, gehoert dem Haus statt ihnen.
+# Eine Kulisse, die etwas Unmoegliches zeigt, laesst Tests bestehen, die in
+# der Wirklichkeit umfallen wuerden.
+QUOTA_BETREIBER: dict[str, Any] = {
+    "movie": {
+        "limit": None,
+        "used": 0,
+        "remaining": None,
+        "unlimited": True,
+        "exhausted": False,
+        "period": "week",
+        "resets_at": None,
+    },
+    "tv": {
+        "limit": None,
+        "used": 0,
+        "remaining": None,
+        "unlimited": True,
+        "exhausted": False,
+        "period": "week",
+        "resets_at": None,
+    },
+}
+
+MY_STORAGE_BETREIBER: dict[str, Any] = {
+    "used_bytes": 0,
+    "items": 0,
+    "limit_bytes": None,
+    "pending_bytes": 0,
+    # Der Punkt: Was er holt, wird beim Haus gebucht.
+    "zurechenbar": False,
+    "entries": [],
+}
+
 ABOUT: dict[str, Any] = {
     "version": "0.30.0",
     "latest_version": "0.31.0",
@@ -293,8 +335,10 @@ def nexview(aioclient_mock: AiohttpClientMocker) -> AiohttpClientMocker:
     aioclient_mock.get(f"{URL}/api/admin/stats", json=STATS)
     aioclient_mock.get(f"{URL}/api/calendar", json=CALENDAR)
     aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
-    aioclient_mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
-    aioclient_mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
+    # Die Standardkulisse ist ein Betreiber - also unbegrenzt und ohne
+    # Zurechnung, so wie Nexview ihn wirklich beschreibt.
+    aioclient_mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA_BETREIBER)
+    aioclient_mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE_BETREIBER)
     aioclient_mock.get(f"{URL}/api/v1/notifications/unread/count", json={"unread": 7})
     aioclient_mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
     return aioclient_mock
