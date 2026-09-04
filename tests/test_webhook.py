@@ -284,7 +284,9 @@ class TestTheLanguage:
         ):
             await setup_entry(hass, entry)
 
-        assert gefragt == ["de"], "Nexview wurde nicht in der Sprache dieser Instanz gefragt."
+        assert gefragt == ["de"], (
+            "Nexview wurde nicht in der Sprache dieser Instanz gefragt."
+        )
 
     async def test_anything_that_is_not_german_gets_english(
         self,
