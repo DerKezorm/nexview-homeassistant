@@ -446,10 +446,10 @@ class NexviewClient:
     # steps, and all four are ours to take - nobody should have to copy a code
     # between two browser tabs.
 
-    # --- The way back, as of Nexview 0.31 ---------------------------------
+    # --- The way back, as of Nexview 0.30 ---------------------------------
     #
     # ⚠️ **One address instead of four, and it belongs to this key.** Before
-    # 0.31 an integration had to register a house-wide notification target,
+    # 0.30 an integration had to register a house-wide notification target,
     # which meant three things at once: it needed an operator key (a personal
     # one was refused outright), it appeared in a settings page where nobody
     # could tell what it was, and it received every notification in the house

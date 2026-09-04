@@ -259,7 +259,7 @@ def _async_report_push(
     etwas, das jemand gerade absichtlich ausgeschaltet hat, ist keine Hilfe,
     sondern eine Meldung, die man wegklickt und die wiederkommt.
 
-    ⚠️ **Zwei Ursachen, zwei Saetze.** Ein Nexview vor 0.31 kennt die Adresse
+    ⚠️ **Zwei Ursachen, zwei Saetze.** Ein Nexview vor 0.30 kennt die Adresse
     dafuer noch nicht; ein neueres kennt sie und erreicht dieses Home
     Assistant trotzdem nicht. Wer im zweiten Fall nach der Nexview-Version
     sucht, sucht am falschen Ort.

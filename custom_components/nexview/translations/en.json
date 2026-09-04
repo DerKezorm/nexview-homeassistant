@@ -433,7 +433,7 @@
     },
     "push_too_old": {
       "title": "This Nexview cannot notify Home Assistant yet",
-      "description": "{name} is connected and its figures are up to date, but callback addresses arrived in Nexview 0.31. Events therefore only appear when Home Assistant asks, every 30 seconds.\\n\\nUpdate Nexview, or switch the callback off in the integration options to stop this notice."
+      "description": "{name} is connected and its figures are up to date, but callback addresses arrived in Nexview 0.30. Events therefore only appear when Home Assistant asks, every 30 seconds.\\n\\nUpdate Nexview, or switch the callback off in the integration options to stop this notice."
     }
   },
   "options": {

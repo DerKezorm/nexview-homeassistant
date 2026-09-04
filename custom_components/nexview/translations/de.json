@@ -433,7 +433,7 @@
     },
     "push_too_old": {
       "title": "Dieses Nexview kann Home Assistant noch nicht benachrichtigen",
-      "description": "{name} ist verbunden und die Zahlen stimmen, aber Rückkanäle gibt es in Nexview erst ab 0.31. Ereignisse kommen deshalb nur, wenn Home Assistant nachfragt, also alle 30 Sekunden.\\n\\nNexview aktualisieren, oder den Rückkanal in den Einstellungen der Integration abschalten, damit dieser Hinweis verschwindet."
+      "description": "{name} ist verbunden und die Zahlen stimmen, aber Rückkanäle gibt es in Nexview erst ab 0.30. Ereignisse kommen deshalb nur, wenn Home Assistant nachfragt, also alle 30 Sekunden.\\n\\nNexview aktualisieren, oder den Rückkanal in den Einstellungen der Integration abschalten, damit dieser Hinweis verschwindet."
     }
   },
   "options": {

@@ -293,6 +293,8 @@ MY_STORAGE_BETREIBER: dict[str, Any] = {
 
 ABOUT: dict[str, Any] = {
     "version": "0.30.0",
+    # ⚠️ Absichtlich hoeher als die laufende: Der Update-Eintrag hat sonst
+    # nichts zu melden, und der Test dazu waere hohl.
     "latest_version": "0.31.0",
     "update_available": True,
     "release_url": "https://example.com/releases/0.31.0",

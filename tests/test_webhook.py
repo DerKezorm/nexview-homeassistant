@@ -415,7 +415,7 @@ class TestTheSwitch:
     ) -> None:
         """⚠️ Zwei Ursachen, zwei Meldungen.
 
-        Ein Nexview vor 0.31 kennt die Adresse dafuer nicht. Wer in diesem Fall
+        Ein Nexview vor 0.30 kennt die Adresse dafuer nicht. Wer in diesem Fall
         die Meldung "Nexview erreicht dieses Home Assistant nicht" bekaeme,
         suchte am falschen Ort - naemlich im Netzwerk statt im Update.
         """

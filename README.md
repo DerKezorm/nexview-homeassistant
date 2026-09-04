@@ -179,7 +179,7 @@ it, and unregisters the webhook.
 
 ## Known limitations
 
-- **The callback needs Nexview 0.31.** Older versions only knew house-wide
+- **The callback needs Nexview 0.30.** Older versions only knew house-wide
   notification targets, which an ordinary account could not register at all -
   and which would have delivered every notification in the house rather than
   yours. The figures work against 0.30, events do not, and a repair notice says

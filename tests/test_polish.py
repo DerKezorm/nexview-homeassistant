@@ -348,7 +348,7 @@ class TestTheStorageSplit:
     async def test_an_older_nexview_puts_everything_on_the_people(
         self, hass: HomeAssistant, entry: MockConfigEntry, aioclient_mock
     ) -> None:
-        """Ein Nexview vor 0.31 kennt das Feld nicht.
+        """Ein Nexview vor 0.30 kennt das Feld nicht.
 
         Dann ist der Hausbestand 0 und alles zaehlt bei den Bewohnern. Das ist
         die ehrlichere Vorgabe: Es sagt "wir wissen es nicht" durch eine Null

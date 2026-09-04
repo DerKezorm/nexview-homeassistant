@@ -179,7 +179,7 @@ class Tile:
     used_bytes: int
     free_bytes: int
     #: Wieviel vom belegten Platz dem Haus gehoert und bei niemandem zaehlt.
-    #: 0 bei einem Nexview vor 0.31, das dieses Feld noch nicht kennt.
+    #: 0 bei einem Nexview vor 0.30, das dieses Feld noch nicht kennt.
     house_bytes: int
     open_tickets: int
     instances: tuple[Instance, ...]
@@ -252,7 +252,7 @@ class AccountUsage:
     #: Requests of this account still waiting for a decision.
     pending: int = 0
     #: Wann sich dieses Konto zuletzt angemeldet hat, als ISO-Zeitpunkt.
-    #: ``None`` heisst: noch nie, oder Nexview ist aelter als 0.31.
+    #: ``None`` heisst: noch nie, oder Nexview ist aelter als 0.30.
     #:
     #: ⚠️ **Ein Zeitpunkt, kein Verlauf.** Wer wissen will, welche Konten
     #: eingeschlafen sind, sieht es hier auf einen Blick. Was jemand wann

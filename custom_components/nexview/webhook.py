@@ -181,12 +181,12 @@ class NexviewWebhook:
             stand = await client.push_state()
         except NexviewNotFoundError:
             self.zu_alt = True
-            # An older Nexview. Nothing to fall back to: before 0.31 only an
+            # An older Nexview. Nothing to fall back to: before 0.30 only an
             # operator could register a target at all, and it would then have
             # received every notification in the house instead of this
             # person's. The repair issue says so in as many words.
             _LOGGER.info(
-                "This Nexview does not offer a callback address yet (needs 0.31)"
+                "This Nexview does not offer a callback address yet (needs 0.30)"
             )
             return False
         except NexviewError as err:
