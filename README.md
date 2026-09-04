@@ -78,7 +78,8 @@ automation:
   - alias: Nexview request waiting
     triggers:
       - trigger: event.received
-        entity_id: event.nexview_requests
+        target:
+          entity_id: event.nexview_requests
         options:
           event_type: pending
     actions:
@@ -94,9 +95,19 @@ automation:
                 title: Reject
 ```
 
+⚠️ **`target:` is not optional here.** The entity goes underneath it, not
+beside it - written the other way the automation editor says "no target set"
+and refuses to save. In the editor this is the *Add target* button.
+
 The two buttons are wired up with a second automation that listens for
 `mobile_app_notification_action` and calls `nexview.approve_request` or
 `nexview.reject_request`.
+
+Every event carries `title`, `body`, `level`, `url` (where it points inside
+Nexview), `image` and `nexview_event` with the original name Nexview used. The
+same shape works for the other two entities - `event.nexview_operations` with
+`event_type: ticket` for a new ticket, `event.nexview_storage` with
+`release_requested` when somebody is asked to give storage back.
 
 ## Requirements
 
