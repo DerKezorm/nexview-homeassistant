@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/hacs/integration"><img alt="HACS: custom repository" src="https://img.shields.io/badge/HACS-custom-41BDF5"></a>
-  <img alt="Home Assistant 2026.9 or newer" src="https://img.shields.io/badge/Home%20Assistant-2026.9%2B-41BDF5">
+  <img alt="Home Assistant 2026.3 or newer" src="https://img.shields.io/badge/Home%20Assistant-2026.3%2B-41BDF5">
   <img alt="Needs Nexview 0.30 or newer" src="https://img.shields.io/badge/Nexview-0.30%2B-e11d2f">
   <img alt="MIT licensed" src="https://img.shields.io/badge/licence-MIT-blue">
 </p>
@@ -151,9 +151,14 @@ place.
 
 ## Requirements
 
-Nexview 0.30.0 or newer. Older versions are turned away during setup with a
-sentence explaining why - the integration needs an endpoint that tells it what
-a key is allowed to do, and that arrived in 0.30.0.
+**Nexview 0.30.0 or newer.** Older versions are turned away during setup with a
+sentence explaining why: the integration needs an endpoint that tells it what a
+key is allowed to do, and that arrived in 0.30.0.
+
+**Home Assistant 2026.3 or newer.** That is where an integration may carry its
+own brand images, which is how the logo gets there. Everything else this uses is
+older than that; on 2026.9, which is what it is developed against, all of it is
+tested every run.
 
 ## Installation
 
