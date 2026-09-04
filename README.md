@@ -163,6 +163,14 @@ Until this is in the HACS default list, add it as a custom repository:
 2. Repository `DerKezorm/nexview-homeassistant`, category **Integration**
 3. Install, restart Home Assistant, then add the integration
 
+**HACS shows a grey box instead of the logo, and that is a HACS bug.** Since
+Home Assistant 2026.3 an integration carries its own brand images and Home
+Assistant serves them from `/api/brands/integration/…`. HACS still asks the old
+CDN, which knows nothing about them, gets a 404 and falls back to a placeholder
+([hacs/integration#5223](https://github.com/hacs/integration/issues/5223)). Once
+installed, the logo shows up everywhere in Home Assistant itself: devices and
+services, every device page, the search when adding it.
+
 ## When something does not work
 
 **No entities beyond "Reachable".** The key decides what exists. Open the
