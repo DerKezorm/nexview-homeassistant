@@ -24,6 +24,9 @@ does it for themselves: enter your own access key and you get your own figures
 and are notified about your own business. Somebody else in the same house
 running their own Home Assistant gets theirs, and neither sees the other's.
 
+Every entity is explained one by one on the project page:
+**[What this integration does](https://nexview.nexapps.dev/en/features/home-assistant/)**.
+
 ## What you get
 
 **The house at a glance.** Waiting requests, requests in progress, failures over
