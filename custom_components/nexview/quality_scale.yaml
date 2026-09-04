@@ -14,10 +14,11 @@ rules:
   brands:
     status: todo
     comment: >-
-      brand/ carries icon.txt, which points at a Material Design icon so that
-      there is something rather than nothing. The real logo exists as a design
-      and still has to be turned into png; for the core it goes into
-      home-assistant/brands rather than into this repository.
+      brand/ now carries the two files home-assistant/brands wants, 256 and
+      512, both cut from the one artwork Nexview uses as its app icon. What is
+      still missing is the pull request over there, and that only makes sense
+      once this integration is public: asking for a brand entry for something
+      nobody can install would rightly be turned down.
   common-modules: done
   config-flow: done
   config-flow-test-coverage: done
