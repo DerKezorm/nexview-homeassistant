@@ -1,8 +1,28 @@
-# Nexview for Home Assistant
+<p align="center">
+  <img src="custom_components/nexview/brand/icon.png" width="128" alt="">
+</p>
 
-Brings [Nexview](https://nexview.nexapps.dev) into Home Assistant: what is
-waiting, what is running, whether the instances behind it still answer - and a
-way to approve or reject a request without opening Nexview at all.
+<h1 align="center">Nexview for Home Assistant</h1>
+
+<p align="center">
+  What is waiting, what is running, whether the instances behind it still
+  answer<br>and a way to approve or reject a request without opening Nexview at
+  all.
+</p>
+
+<p align="center">
+  <a href="https://github.com/hacs/integration"><img alt="HACS: custom repository" src="https://img.shields.io/badge/HACS-custom-41BDF5"></a>
+  <img alt="Home Assistant 2026.9 or newer" src="https://img.shields.io/badge/Home%20Assistant-2026.9%2B-41BDF5">
+  <img alt="Needs Nexview 0.30 or newer" src="https://img.shields.io/badge/Nexview-0.30%2B-e11d2f">
+  <img alt="MIT licensed" src="https://img.shields.io/badge/licence-MIT-blue">
+</p>
+
+---
+
+Brings [Nexview](https://nexview.nexapps.dev) into Home Assistant, and everybody
+does it for themselves: enter your own access key and you get your own figures
+and are notified about your own business. Somebody else in the same house
+running their own Home Assistant gets theirs, and neither sees the other's.
 
 ## What you get
 
