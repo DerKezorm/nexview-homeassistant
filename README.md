@@ -85,8 +85,8 @@ automation:
     actions:
       - action: notify.mobile_app_your_phone
         data:
-          title: "{{ trigger.event.data.title }}"
-          message: "{{ trigger.event.data.body }}"
+          title: "{{ trigger.to_state.attributes['title'] }}"
+          message: "{{ trigger.to_state.attributes['body'] }}"
           data:
             actions:
               - action: NEXVIEW_APPROVE
@@ -95,9 +95,17 @@ automation:
                 title: Reject
 ```
 
-⚠️ **`target:` is not optional here.** The entity goes underneath it, not
-beside it - written the other way the automation editor says "no target set"
-and refuses to save. In the editor this is the *Add target* button.
+Two details that cost an evening to find, so they are written down here:
+
+⚠️ **`target:` is not optional.** The entity goes underneath it, not beside it.
+Written the other way the automation editor reports "no target set" and refuses
+to save. In the editor this is the *Add target* button.
+
+⚠️ **The event arrives as a state change, not as a bus event.** Its fields live
+in `trigger.to_state.attributes`, and `trigger.event.data` does not exist. Use
+square brackets rather than a dot: `attributes.title` resolves to Python's
+string method `title` instead of the field, and what lands in the notification
+is `<built-in method title of str object>`.
 
 The two buttons are wired up with a second automation that listens for
 `mobile_app_notification_action` and calls `nexview.approve_request` or
@@ -108,6 +116,11 @@ Nexview), `image` and `nexview_event` with the original name Nexview used. The
 same shape works for the other two entities - `event.nexview_operations` with
 `event_type: ticket` for a new ticket, `event.nexview_storage` with
 `release_requested` when somebody is asked to give storage back.
+
+⚠️ **If `url` points somewhere unexpected**, check Nexview's public address in
+its settings. Nexview builds that link itself, and a wrong address there sends
+every notification - in Home Assistant and everywhere else - to the wrong
+place.
 
 ## Requirements
 
