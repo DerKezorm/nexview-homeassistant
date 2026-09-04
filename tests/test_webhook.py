@@ -317,6 +317,100 @@ class TestTheLanguage:
 
         assert gefragt == ["en"]
 
+    async def _stand(
+        self,
+        hass: HomeAssistant,
+        entry: MockConfigEntry,
+        nexview: AiohttpClientMocker,
+        *,
+        gemeldet: dict[str, object],
+    ) -> AsyncMock:
+        """Aufbauen gegen ein Nexview, das `gemeldet` ueber das Ziel sagt.
+
+        ⚠️ **``push_state`` wird gepatcht, nicht als HTTP-Mock gesetzt.** Die
+        Kulisse belegt ``/api/v1/me/push`` bereits, und beim Mocker gewinnt der
+        zuerst registrierte Eintrag - ein zweiter daneben waere wirkungslos
+        gewesen, und der Test haette geprueft, was die Kulisse sagt.
+        """
+        known_url = f"http://ha.test:8123/api/webhook/{WEBHOOK_ID}"
+        stand = {"eingerichtet": True, "bestaetigt": True, "url": known_url}
+        stand.update(gemeldet)
+
+        with (
+            patch(
+                "custom_components.nexview.webhook.NexviewWebhook.url",
+                new_callable=PropertyMock,
+                return_value=known_url,
+            ),
+            patch(
+                "custom_components.nexview.api.NexviewClient.push_state",
+                AsyncMock(return_value=stand),
+            ),
+            patch(
+                "custom_components.nexview.api.NexviewClient.push_register", AsyncMock()
+            ) as sent,
+        ):
+            await setup_entry(hass, entry)
+        return sent
+
+    async def test_the_same_language_is_left_alone(
+        self,
+        hass: HomeAssistant,
+        entry: MockConfigEntry,
+        nexview: AiohttpClientMocker,
+    ) -> None:
+        """Nothing to do, so nothing is sent."""
+        hass.config.language = "en"
+        sent = await self._stand(
+            hass, entry, nexview, gemeldet={"language": "en"}
+        )
+        assert sent.call_count == 0, "It re-registered a target that was already right."
+
+    async def test_a_changed_language_is_registered_again(
+        self,
+        hass: HomeAssistant,
+        entry: MockConfigEntry,
+        nexview: AiohttpClientMocker,
+    ) -> None:
+        """⚠️ The address is right, the language is not, and that counts.
+
+        Somebody switched this Home Assistant to German after setting the
+        integration up. Without this, Nexview would keep sending English
+        sentences for as long as the target stands, and nothing would say why.
+        """
+        hass.config.language = "de"
+        sent = await self._stand(
+            hass, entry, nexview, gemeldet={"language": "en"}
+        )
+        assert sent.call_count == 1, (
+            "The language changed and the target was left as it was. Nexview "
+            "goes on sending in the old language until somebody disconnects it "
+            "by hand."
+        )
+        assert sent.call_args.args[2] == "de", (
+            f"Registered again, but in {sent.call_args.args[2]!r} rather than "
+            "the language this Home Assistant is now set to."
+        )
+
+    async def test_a_nexview_that_reports_no_language_is_left_alone(
+        self,
+        hass: HomeAssistant,
+        entry: MockConfigEntry,
+        nexview: AiohttpClientMocker,
+    ) -> None:
+        """⚠️ A missing field is not a mismatch.
+
+        Read strictly, `None != "de"` would mean re-registering on every single
+        restart, each time with a test message, against anything that does not
+        report the language back.
+        """
+        hass.config.language = "de"
+        sent = await self._stand(hass, entry, nexview, gemeldet={})
+        assert sent.call_count == 0, (
+            "It re-registered because the other side said nothing about the "
+            "language. That repeats on every restart."
+        )
+
 
 class TestWhenNexviewCannotReachUs:
     async def test_it_says_so_instead_of_going_quiet(

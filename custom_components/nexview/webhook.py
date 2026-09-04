@@ -193,7 +193,21 @@ class NexviewWebhook:
             _LOGGER.debug("Could not ask Nexview about the way back: %s", err)
             return False
 
-        if stand.get("bestaetigt") and stand.get("url") == url:
+        # ⚠️ **Auch die Sprache, nicht nur die Adresse.** Nexview merkt sich
+        # bei der Anmeldung, in welcher Sprache es melden soll, und schickt
+        # danach fertige Saetze. Stellt jemand dieses Home Assistant spaeter
+        # um, kamen die Meldungen weiter in der alten Sprache - und nichts
+        # sagte, warum.
+        #
+        # ⚠️ **Fehlt das Feld, ist das kein Grund.** Sonst meldete sich diese
+        # Integration bei jedem Neustart neu an, sobald drueben etwas die
+        # Sprache nicht mitliefert, und schickte jedes Mal eine Testnachricht.
+        drueben = stand.get("language")
+        if (
+            stand.get("bestaetigt")
+            and stand.get("url") == url
+            and drueben in (None, self._sprache())
+        ):
             return True
 
         try:

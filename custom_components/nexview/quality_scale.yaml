@@ -6,6 +6,12 @@
 # "what is still missing" - which is otherwise a matter of memory.
 #
 # status: done | todo | exempt. Every exempt carries a reason.
+#
+# ⚠️ Two rules below stay "todo" on purpose, not for want of time. They are the
+# two that only pay off on the way into the core, and this integration is
+# shipped through HACS instead. They are left as "todo" rather than "exempt"
+# because "exempt" would claim the rule does not apply here, and it does - it
+# is simply not being pursued. The comment on each says so.
 
 rules:
   # --- Bronze -------------------------------------------------------------
@@ -20,8 +26,11 @@ rules:
     comment: >-
       The client lives in api/ and imports nothing from Home Assistant, which a
       test enforces. It is shipped with the integration rather than published,
-      so it is not yet a transparent dependency in the sense of the rule.
-      Publishing it as python-nexview is the step this rule is waiting for.
+      so it is not a transparent dependency in the sense of the rule.
+      Publishing it as python-nexview would satisfy this, and that step is
+      deliberately not taken: it would mean a third repository with its own
+      release cycle, and the rule buys nothing outside the core. Revisit this
+      if submitting to the core ever becomes the plan.
   docs-actions: done
   docs-high-level-description: done
   docs-installation-instructions: done
@@ -55,11 +64,14 @@ rules:
   test-coverage:
     status: todo
     comment: >-
-      91% overall across 74 tests, and every path a person walks is covered:
-      setting up, being refused, re-authenticating, moving, picking accounts,
-      deciding, pressing an errand, asking what is playing. What is left is
-      mostly error branches in the client, which is the last stretch to the
-      95% the rule asks for.
+      Every path a person walks is covered: setting up, being refused,
+      re-authenticating, moving, picking accounts, deciding, pressing an
+      errand, asking what is playing. What is left short of the 95% the rule
+      asks for is mostly error branches inside the client. Chasing the last
+      few points is not planned while this ships through HACS; the tests that
+      matter are the ones that describe behaviour, and those are written when
+      the behaviour is. No figure is quoted here on purpose - a number in a
+      comment goes stale without anybody noticing.
 
   # --- Gold ---------------------------------------------------------------
   devices: done
