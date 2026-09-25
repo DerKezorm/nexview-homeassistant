@@ -151,7 +151,9 @@ class Instance:
             # Nexview 1.0 with nexcrate sends a code instead of a sentence
             # (``text`` stays empty); the code is still worth reading.
             problem_texts=tuple(
-                str(m.get("text") or m.get("code") or "") if isinstance(m, dict) else str(m)
+                str(m.get("text") or m.get("code") or "")
+                if isinstance(m, dict)
+                else str(m)
                 for m in meldungen
             ),
             queue=_ganzzahl(raw.get("warteschlange")),
