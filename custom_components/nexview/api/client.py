@@ -226,10 +226,10 @@ class NexviewClient:
         streams = laufend.get("wiedergaben") or []
 
         if server is None:
-            anbieter = set(je_anbieter) | {
+            bekannte = set(je_anbieter) | {
                 str(w.get("provider")) for w in streams if w.get("provider")
             }
-            server = [{"id": a, "provider": a} for a in sorted(anbieter)]
+            server = [{"id": a, "provider": a} for a in sorted(bekannte)]
 
         out: list[MediaServer] = []
         for s in server:
