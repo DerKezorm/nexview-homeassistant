@@ -23,6 +23,7 @@ from yarl import URL
 
 from .exceptions import (
     NexviewAuthError,
+    NexviewConflictError,
     NexviewConnectionError,
     NexviewError,
     NexviewNotFoundError,
@@ -95,6 +96,8 @@ class NexviewClient:
                     )
                 if response.status == 404:
                     raise NexviewNotFoundError(path)
+                if response.status == 409:
+                    raise NexviewConflictError(path)
                 response.raise_for_status()
                 if response.status == 204:
                     return None
@@ -199,8 +202,15 @@ class NexviewClient:
         the per-provider count out of the analysis, and the current streams.
         The last two are optional - a server with neither is still a server.
         """
-        roh = await self._call("GET", "/api/settings/qualitaetsprofile/medienserver")
-        server = (roh or {}).get("server") or []
+        # ⚠️ This address lists which Radarr or Sonarr instance knows which
+        # media server. With nexcrate instead (Nexview 1.0) it answers 409, and
+        # the whole poll failed with it. The servers then come from the two
+        # other sources below.
+        try:
+            roh = await self._call("GET", "/api/settings/qualitaetsprofile/medienserver")
+            server: list[dict[str, Any]] | None = (roh or {}).get("server") or []
+        except NexviewConflictError:
+            server = None
 
         if analysis is None:
             try:
@@ -214,6 +224,12 @@ class NexviewClient:
         except NexviewError:
             laufend = {}
         streams = laufend.get("wiedergaben") or []
+
+        if server is None:
+            anbieter = set(je_anbieter) | {
+                str(w.get("provider")) for w in streams if w.get("provider")
+            }
+            server = [{"id": a, "provider": a} for a in sorted(anbieter)]
 
         out: list[MediaServer] = []
         for s in server:

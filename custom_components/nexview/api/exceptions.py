@@ -44,6 +44,20 @@ class NexviewNotFoundError(NexviewError):
         self.path = path
 
 
+class NexviewConflictError(NexviewError):
+    """Nexview answered 409.
+
+    Nexview 1.0 says so for an address that belongs to the other way of
+    getting media: with nexcrate instead of Radarr and Sonarr, the Radarr and
+    Sonarr tools answer ``409 not_in_this_mode``. The caller decides whether it
+    can do without.
+    """
+
+    def __init__(self, path: str) -> None:
+        super().__init__(f"Nexview does not offer {path} right now (HTTP 409)")
+        self.path = path
+
+
 class NexviewTooOldError(NexviewError):
     """This Nexview is older than the integration needs.
 

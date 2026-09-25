@@ -7,6 +7,7 @@ package out into ``python-nexview`` on PyPI later changes one import line.
 from .client import KEY_PREFIX, MIN_VERSION, NexviewClient
 from .exceptions import (
     NexviewAuthError,
+    NexviewConflictError,
     NexviewConnectionError,
     NexviewError,
     NexviewNotFoundError,
@@ -48,6 +49,7 @@ __all__ = [
     "MediaServer",
     "NexviewAuthError",
     "NexviewClient",
+    "NexviewConflictError",
     "NexviewConnectionError",
     "NexviewError",
     "NexviewNotFoundError",

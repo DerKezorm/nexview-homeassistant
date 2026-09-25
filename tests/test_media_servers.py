@@ -118,6 +118,53 @@ class TestMediaServers:
         }
         assert namen == {"Plex Server (Oben)", "Plex Server (Unten)"}
 
+    async def test_with_nexcrate_the_servers_come_from_the_analysis(
+        self, hass: HomeAssistant, entry: MockConfigEntry, aioclient_mock
+    ) -> None:
+        """⚠️ Nexview 1.0 mit nexcrate statt Radarr und Sonarr antwortet auf die
+        Liste der Arr-Verbindungen mit 409. Bis dahin riss das den ganzen
+        Abruf mit; die Medienserver kommen dann aus Abgleich und Wiedergaben."""
+        from .conftest import (
+            ABOUT,
+            ANALYSIS,
+            IDENTITY_ADMIN,
+            MY_STORAGE,
+            PLAYING,
+            QUOTA,
+            STATS,
+            TILE,
+        )
+
+        aioclient_mock.get(f"{URL}/api/v1/me", json=IDENTITY_ADMIN)
+        aioclient_mock.get(f"{URL}/api/v1/dashboard", json=TILE)
+        aioclient_mock.get(
+            f"{URL}/api/v1/admin/requests/pending/count", json={"pending": 0}
+        )
+        aioclient_mock.get(f"{URL}/api/settings/channels/webhook/targets", json=[])
+        aioclient_mock.get(f"{URL}/api/admin/analyse", json=ANALYSIS)
+        aioclient_mock.get(f"{URL}/api/admin/analyse/laufend", json=PLAYING)
+        aioclient_mock.get(f"{URL}/api/admin/stats", json=STATS)
+        aioclient_mock.get(f"{URL}/api/calendar", json={"days": []})
+        aioclient_mock.get(f"{URL}/api/v1/about", json=ABOUT)
+        aioclient_mock.get(f"{URL}/api/v1/requests/quota", json=QUOTA)
+        aioclient_mock.get(f"{URL}/api/v1/storage/me", json=MY_STORAGE)
+        aioclient_mock.get(
+            f"{URL}/api/v1/notifications/unread/count", json={"unread": 0}
+        )
+        aioclient_mock.get(f"{URL}/api/v1/tickets/open-count", json={"count": 0})
+        aioclient_mock.get(f"{URL}/api/admin/requests", json=[])
+        aioclient_mock.get(
+            f"{URL}/api/settings/qualitaetsprofile/medienserver",
+            status=409,
+            json={"detail": {"code": "not_in_this_mode"}},
+        )
+
+        await setup_entry(hass, entry)
+
+        assert _state(hass, entry, "serverplex_titles").state == "3723"
+        assert _state(hass, entry, "serverplex_playing").state == "2"
+        assert _state(hass, entry, "serverjellyfin_titles").state == "3731"
+
     async def test_it_counts_what_is_playing_and_what_is_being_converted(
         self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
     ) -> None:
