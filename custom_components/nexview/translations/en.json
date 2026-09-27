@@ -310,7 +310,7 @@
     },
     "defer_request": {
       "name": "Defer request",
-      "description": "Puts a request aside without deciding it. It stays visible in Nexview.",
+      "description": "Puts a request aside until its account has room again. Only for an account over its limits; Nexview 1.0 refuses it for any other. The request stays visible in Nexview.",
       "fields": {
         "request_id": {
           "name": "Request",
@@ -424,6 +424,24 @@
     },
     "unknown_instance": {
       "message": "Nexview does not know an instance called {instance}."
+    },
+    "request_not_pending": {
+      "message": "Request {request_id} is not waiting for approval any more. It may have been decided already."
+    },
+    "defer_nothing_to_wait_for": {
+      "message": "Request {request_id} cannot be deferred: the account is within its limits, so the request would come straight back to the open approvals. Approve or reject it instead."
+    },
+    "version_fed_by_source": {
+      "message": "Request {request_id} cannot go to nexcrate yet: Radarr or Sonarr still manages this title in this version. It can be requested once the title has been handed over to nexcrate."
+    },
+    "procurement_unreachable": {
+      "message": "Nexview could not reach {service}. Check that {service} is running, then try again."
+    },
+    "procurement_key_rejected": {
+      "message": "{service} refused the key Nexview uses for it. Check the connection in Nexview's settings."
+    },
+    "procurement_refused": {
+      "message": "{service} refused this, code {code}."
     }
   },
   "issues": {

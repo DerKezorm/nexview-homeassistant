@@ -38,6 +38,7 @@ from .api import (
     NexviewConnectionError,
     NexviewError,
     NexviewNotFoundError,
+    NexviewResponseError,
 )
 from .const import (
     ATTR_ACCOUNT,
@@ -332,17 +333,8 @@ async def _async_register_services(hass: HomeAssistant) -> None:
                 await client.cancel(request_id)
         except NexviewAuthError as err:
             raise ConfigEntryAuthFailed(str(err)) from err
-        except NexviewNotFoundError as err:
-            # ⚠️ Not a failure of the integration, and it must not read like
-            # one. Nexview answers 404 for a request number that was already
-            # decided or never existed, and "Nexview has nothing at
-            # /api/admin/requests/42/approve" sends people looking for a
-            # broken address instead of a wrong number.
-            raise ServiceValidationError(
-                translation_domain=DOMAIN,
-                translation_key="unknown_request",
-                translation_placeholders={"request_id": str(request_id)},
-            ) from err
+        except NexviewResponseError as err:
+            raise _refused(err, request_id) from err
         except NexviewConnectionError as err:
             raise _failed(err, "unreachable") from err
         except NexviewError as err:
@@ -451,6 +443,92 @@ async def _async_register_services(hass: HomeAssistant) -> None:
             schema=schema,
             supports_response=SupportsResponse.ONLY,
         )
+
+
+#: Refusals about the request itself: nothing is broken, the request is just
+#: not in a state where this decision fits. Told as a wrong input, the way
+#: Home Assistant shows one, with the request number.
+_ABOUT_THE_REQUEST = {
+    "request_not_pending": "request_not_pending",
+    "defer_nothing_to_wait_for": "defer_nothing_to_wait_for",
+    "nexcrate_version_fed_by_source": "version_fed_by_source",
+}
+
+#: Approving hands a request on and cancelling takes it back out; both can
+#: fail at Radarr, Sonarr or nexcrate. These name the failing service.
+_THEY_ARE_AWAY = frozenset(
+    {
+        "arr_timeout",
+        "arr_unreachable",
+        "arr_unexpected_answer",
+        "nexcrate_timeout",
+        "nexcrate_unreachable",
+        "nexcrate_unexpected_answer",
+        "nexcrate_unavailable",
+        "nexcrate_busy",
+    }
+)
+_THEY_REFUSE_THE_KEY = frozenset(
+    {"arr_key_rejected", "nexcrate_key_rejected", "nexcrate_scope_missing"}
+)
+
+#: Every key ``_refused`` can raise. A test holds both translations to it.
+REFUSAL_KEYS = frozenset(
+    {
+        *_ABOUT_THE_REQUEST.values(),
+        "unknown_request",
+        "procurement_unreachable",
+        "procurement_key_rejected",
+        "procurement_refused",
+        "request_failed",
+    }
+)
+
+
+def _refused(err: NexviewResponseError, request_id: int) -> HomeAssistantError:
+    """Nexview said no to a decision. Say why, from its code.
+
+    ⚠️ **Only the code is read.** Nexview's own sentence is German and meant
+    for its interface; whoever reads the trace gets ours, in their language.
+    A code this integration does not know yet ends in ``request_failed``
+    with the code in it, which is something to search for.
+    """
+    code = err.code or ""
+    if code in _ABOUT_THE_REQUEST:
+        return ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key=_ABOUT_THE_REQUEST[code],
+            translation_placeholders={"request_id": str(request_id)},
+        )
+    if isinstance(err, NexviewNotFoundError):
+        # ⚠️ Not a failure of the integration, and it must not read like one.
+        # Nexview answers 404 for a request number that was already decided
+        # or never existed, and "Nexview has nothing at
+        # /api/admin/requests/42/approve" sends people looking for a broken
+        # address instead of a wrong number.
+        return ServiceValidationError(
+            translation_domain=DOMAIN,
+            translation_key="unknown_request",
+            translation_placeholders={"request_id": str(request_id)},
+        )
+    if code.startswith(("arr_", "nexcrate_")):
+        # Radarr and Sonarr errors name their service; nexcrate's do not,
+        # their prefix does.
+        service = err.service or (
+            "nexcrate" if code.startswith("nexcrate_") else "Radarr/Sonarr"
+        )
+        if code in _THEY_ARE_AWAY:
+            key, placeholders = "procurement_unreachable", {"service": service}
+        elif code in _THEY_REFUSE_THE_KEY:
+            key, placeholders = "procurement_key_rejected", {"service": service}
+        else:
+            key, placeholders = "procurement_refused", {"service": service, "code": code}
+        return HomeAssistantError(
+            translation_domain=DOMAIN,
+            translation_key=key,
+            translation_placeholders=placeholders,
+        )
+    return _failed(err, "request_failed")
 
 
 def _failed(err: Exception, key: str) -> HomeAssistantError:

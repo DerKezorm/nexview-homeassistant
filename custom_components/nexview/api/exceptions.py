@@ -29,7 +29,35 @@ class NexviewAuthError(NexviewError):
     """
 
 
-class NexviewNotFoundError(NexviewError):
+class NexviewResponseError(NexviewError):
+    """Nexview answered, and the answer was an error.
+
+    ⚠️ **The code, never the sentence.** Since 1.0 Nexview answers a refusal
+    with ``{"detail": {"code": ..., "message": ...}}``. The code is meant for
+    machines and stays the same between releases; the message is a German
+    fallback for readers without an interface. Only the code and the service
+    it names are kept here, so there is nothing a caller could put on a screen
+    by mistake. The caller translates the code itself, and whatever it does not
+    know it shows as the code.
+    """
+
+    def __init__(
+        self,
+        method: str,
+        path: str,
+        status: int,
+        code: str | None = None,
+        service: str | None = None,
+    ) -> None:
+        wie = f"HTTP {status}, {code}" if code else f"HTTP {status}"
+        super().__init__(f"Nexview refused {method} {path} ({wie})")
+        self.path = path
+        self.status = status
+        self.code = code
+        self.service = service
+
+
+class NexviewNotFoundError(NexviewResponseError):
     """Nexview answered 404.
 
     ⚠️ **Two very different things wear the same status code.** Either the
@@ -39,23 +67,29 @@ class NexviewNotFoundError(NexviewError):
     exception only carries the path so it can say.
     """
 
-    def __init__(self, path: str) -> None:
-        super().__init__(f"Nexview has nothing at {path}")
-        self.path = path
+    def __init__(self, path: str, code: str | None = None, method: str = "GET") -> None:
+        super().__init__(method, path, 404, code)
 
 
-class NexviewConflictError(NexviewError):
+class NexviewConflictError(NexviewResponseError):
     """Nexview answered 409.
 
     Nexview 1.0 says so for an address that belongs to the other way of
     getting media: with nexcrate instead of Radarr and Sonarr, the Radarr and
-    Sonarr tools answer ``409 not_in_this_mode``. The caller decides whether it
-    can do without.
+    Sonarr tools answer ``409 not_in_this_mode``. It also says so for a
+    decision that does not fit the request any more, with a code that names
+    why (``request_not_pending``, ``defer_nothing_to_wait_for``). The caller
+    decides whether it can do without.
     """
 
-    def __init__(self, path: str) -> None:
-        super().__init__(f"Nexview does not offer {path} right now (HTTP 409)")
-        self.path = path
+    def __init__(
+        self,
+        path: str,
+        code: str | None = None,
+        service: str | None = None,
+        method: str = "GET",
+    ) -> None:
+        super().__init__(method, path, 409, code, service)
 
 
 class NexviewTooOldError(NexviewError):

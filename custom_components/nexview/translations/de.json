@@ -310,7 +310,7 @@
     },
     "defer_request": {
       "name": "Anfrage zurückstellen",
-      "description": "Legt eine Anfrage beiseite, ohne sie zu entscheiden. Sie bleibt in Nexview sichtbar.",
+      "description": "Stellt eine Anfrage zurück, bis ihr Konto wieder Platz hat. Nur bei überzogener Grenze; bei jedem anderen Konto lehnt Nexview 1.0 ab. Die Anfrage bleibt in Nexview sichtbar.",
       "fields": {
         "request_id": {
           "name": "Anfrage",
@@ -424,6 +424,24 @@
     },
     "unknown_instance": {
       "message": "Nexview kennt keine Instanz namens {instance}."
+    },
+    "request_not_pending": {
+      "message": "Die Anfrage {request_id} wartet nicht mehr auf eine Freigabe. Vielleicht wurde sie schon entschieden."
+    },
+    "defer_nothing_to_wait_for": {
+      "message": "Die Anfrage {request_id} lässt sich nicht zurückstellen: Das Konto ist innerhalb seiner Grenzen, sie käme also gleich wieder zu den offenen Freigaben. Gib sie stattdessen frei oder lehne sie ab."
+    },
+    "version_fed_by_source": {
+      "message": "Die Anfrage {request_id} kann noch nicht an nexcrate gehen: Diesen Titel führt in dieser Fassung noch Radarr oder Sonarr. Anfragen lässt er sich, sobald er an nexcrate übergeben ist."
+    },
+    "procurement_unreachable": {
+      "message": "Nexview hat {service} nicht erreicht. Prüfe, ob {service} läuft, und versuche es dann noch einmal."
+    },
+    "procurement_key_rejected": {
+      "message": "{service} hat den Schlüssel abgelehnt, den Nexview dafür verwendet. Prüfe die Verbindung in den Einstellungen von Nexview."
+    },
+    "procurement_refused": {
+      "message": "{service} hat abgelehnt, Code {code}."
     }
   },
   "issues": {

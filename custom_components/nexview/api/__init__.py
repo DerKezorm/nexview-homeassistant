@@ -11,6 +11,7 @@ from .exceptions import (
     NexviewConnectionError,
     NexviewError,
     NexviewNotFoundError,
+    NexviewResponseError,
     NexviewTooOldError,
 )
 from .models import (
@@ -53,6 +54,7 @@ __all__ = [
     "NexviewConnectionError",
     "NexviewError",
     "NexviewNotFoundError",
+    "NexviewResponseError",
     "NexviewTooOldError",
     "Personal",
     "Quota",

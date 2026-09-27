@@ -27,6 +27,7 @@ from .exceptions import (
     NexviewConnectionError,
     NexviewError,
     NexviewNotFoundError,
+    NexviewResponseError,
     NexviewTooOldError,
 )
 from .models import (
@@ -54,6 +55,28 @@ KEY_PREFIX = "nxv_"
 #: what a key may do. Older installations are turned away in the config flow
 #: with a sentence that says what to do about it.
 MIN_VERSION = "0.30.0"
+
+
+def _refusal(text: str) -> tuple[str | None, str | None]:
+    """Code and service out of an error body, if it carries them.
+
+    Nexview 1.0 answers ``{"detail": {"code": ..., "message": ..., "service":
+    ...}}`` in most places, a bare sentence in the rest, and a list for a
+    validation error. Only the first has anything to read; the sentence is
+    left where it is on purpose (see ``NexviewResponseError``).
+    """
+    try:
+        body = json_loads(text) if text.strip() else None
+    except ValueError:
+        return None, None
+    detail = body.get("detail") if isinstance(body, dict) else None
+    if not isinstance(detail, dict):
+        return None, None
+    code, service = detail.get("code"), detail.get("service")
+    return (
+        code if isinstance(code, str) and code else None,
+        service if isinstance(service, str) and service else None,
+    )
 
 
 class NexviewClient:
@@ -94,11 +117,15 @@ class NexviewClient:
                         f"Nexview refused the key for {method} {path}"
                         f" (HTTP {response.status})"
                     )
-                if response.status == 404:
-                    raise NexviewNotFoundError(path)
-                if response.status == 409:
-                    raise NexviewConflictError(path)
-                response.raise_for_status()
+                if response.status >= 400:
+                    code, service = _refusal(await response.text())
+                    if response.status == 404:
+                        raise NexviewNotFoundError(path, code, method)
+                    if response.status == 409:
+                        raise NexviewConflictError(path, code, service, method)
+                    raise NexviewResponseError(
+                        method, path, response.status, code, service
+                    )
                 if response.status == 204:
                     return None
                 # ⚠️ Read the body, do not trust a length header. With chunked
@@ -112,8 +139,6 @@ class NexviewClient:
                 return json_loads(text) if text.strip() else None
         except NexviewError:
             raise
-        except aiohttp.ClientResponseError as err:
-            raise NexviewError(f"Nexview answered HTTP {err.status} for {path}") from err
         except TimeoutError as err:
             raise NexviewConnectionError(
                 f"Nexview did not answer in time ({path})"
@@ -364,11 +389,17 @@ class NexviewClient:
     # that grows without bound was never a good state anyway.
 
     async def search(self, media_type: str, query: str) -> list[dict[str, Any]]:
+        """Titles by name, one page, straight from Nexview's search.
+
+        ⚠️ **The term goes in ``q`` and the titles come back under
+        ``items``.** Up to 0.1.3 this sent ``query``, and every search answered
+        422; the tests had mocked the address without looking at its query.
+        """
         answer = await self._call(
-            "GET", f"/api/v1/search/{media_type}", params={"query": query}
+            "GET", f"/api/v1/search/{media_type}", params={"q": query}
         )
         if isinstance(answer, dict):
-            treffer = answer.get("results") or answer.get("items") or []
+            treffer = answer.get("items") or answer.get("results") or []
             return list(treffer)
         return list(answer or [])
 
@@ -443,10 +474,17 @@ class NexviewClient:
         await self._call("POST", f"/api/admin/requests/{request_id}/approve")
 
     async def reject(self, request_id: int, reason: str | None = None) -> None:
+        """Say no, with a reason if there is one.
+
+        ⚠️ **Always a body, and the field is ``reason``.** Nexview requires
+        the body even when it is empty. Up to 0.1.3 this sent ``grund`` and,
+        without a reason, nothing at all: a plain rejection answered 422 and a
+        reason given was dropped without a word.
+        """
         await self._call(
             "POST",
             f"/api/admin/requests/{request_id}/reject",
-            json={"grund": reason} if reason else None,
+            json={"reason": reason} if reason else {},
         )
 
     async def defer(self, request_id: int) -> None:

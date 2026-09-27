@@ -313,3 +313,37 @@ class TestActionsThatAnswer:
             return_response=True,
         )
         assert answer["results"] == [{"title": "Some Film"}]
+
+    async def test_the_search_asks_the_way_nexview_reads_it(
+        self,
+        hass: HomeAssistant,
+        entry: MockConfigEntry,
+        aioclient_mock: AiohttpClientMocker,
+    ) -> None:
+        """⚠️ Found running against a real Nexview 1.0.
+
+        Nexview reads the search term from ``q`` and answers with a page whose
+        titles sit under ``items``. Up to 0.1.3 the integration sent ``query``,
+        and every search answered 422.
+        """
+        _nur_lesend(aioclient_mock)
+        aioclient_mock.get(
+            f"{URL}/api/v1/search/movie?q=Some+Film",
+            json={
+                "page": 1,
+                "total_pages": 1,
+                "total_results": 1,
+                "items": [{"title": "Some Film"}],
+            },
+        )
+
+        await setup_entry(hass, entry)
+
+        answer = await hass.services.async_call(
+            DOMAIN,
+            SERVICE_SEARCH,
+            {"query": "Some Film"},
+            blocking=True,
+            return_response=True,
+        )
+        assert answer["results"] == [{"title": "Some Film"}]
