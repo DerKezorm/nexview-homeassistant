@@ -451,6 +451,7 @@ async def _async_register_services(hass: HomeAssistant) -> None:
 _ABOUT_THE_REQUEST = {
     "request_not_pending": "request_not_pending",
     "defer_nothing_to_wait_for": "defer_nothing_to_wait_for",
+    "request_not_cancellable": "request_not_cancellable",
     "nexcrate_version_fed_by_source": "version_fed_by_source",
 }
 

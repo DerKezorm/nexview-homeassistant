@@ -442,6 +442,9 @@
     },
     "procurement_refused": {
       "message": "{service} hat abgelehnt, Code {code}."
+    },
+    "request_not_cancellable": {
+      "message": "Die Anfrage {request_id} lässt sich nicht abbrechen: Das geht nur bei laufenden oder gescheiterten Anfragen. Eine, die noch auf die Freigabe wartet, lässt sich stattdessen ablehnen."
     }
   },
   "issues": {

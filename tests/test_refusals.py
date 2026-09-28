@@ -115,6 +115,29 @@ class TestNotWaitingAnyMore:
         assert fehler.value.translation_placeholders == {"request_id": "42"}
 
 
+class TestCancellingWhatIsNotRunning:
+    async def test_a_waiting_request_is_named_as_not_cancellable(
+        self, hass: HomeAssistant, entry: MockConfigEntry, nexview: AiohttpClientMocker
+    ) -> None:
+        """Nexview after 1.0.0 names this case with a code of its own.
+
+        Cancelling is for what is running or failed. A request that still
+        waits for approval is rejected instead, and the message says so.
+        """
+        nexview.post(
+            f"{URL}/api/admin/requests/42/cancel",
+            status=409,
+            json=_refusal("request_not_cancellable"),
+        )
+        await setup_entry(hass, entry)
+
+        with pytest.raises(ServiceValidationError) as fehler:
+            await _call(hass, SERVICE_CANCEL)
+
+        assert fehler.value.translation_key == "request_not_cancellable"
+        assert fehler.value.translation_placeholders == {"request_id": "42"}
+
+
 class TestWhenRadarrOrNexcrateFails:
     """Approving hands the request on, cancelling takes it back out.
 
