@@ -19,13 +19,10 @@
 
 ---
 
-Brings [Nexview](https://nexview.nexapps.dev) into Home Assistant, and everybody
+Brings [Nexview](https://github.com/DerKezorm/nexview) into Home Assistant, and everybody
 does it for themselves: enter your own access key and you get your own figures
 and are notified about your own business. Somebody else in the same house
 running their own Home Assistant gets theirs, and neither sees the other's.
-
-Every entity is explained one by one on the project page:
-**[What this integration does](https://nexview.nexapps.dev/en/features/home-assistant/)**.
 
 ## What you get
 
