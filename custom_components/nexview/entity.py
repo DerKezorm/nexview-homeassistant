@@ -139,7 +139,7 @@ class NexviewServerEntity(NexviewEntity):
             # ⚠️ **Der Anbieter ist der Name, der Servername das Modell.**
             # Ein Plex-Server heisst, wie sein Besitzer ihn genannt hat, und
             # ein Emby im Container heisst nach seiner Kennung. In einer Liste
-            # aus zwanzig Geraeten sucht niemand nach "Bizzy" oder
+            # aus zwanzig Geraeten sucht niemand nach "Wohnzimmer" oder
             # "fed014e636a7" - gesucht wird nach Plex.
             model=(server.name if server else f"Server {server_key}"),
             name=_server_name(server, server_key, coordinator),
